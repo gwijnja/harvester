@@ -2,20 +2,21 @@ package local
 
 import (
 	"fmt"
-	"gwijnja/mft"
 	"log"
 	"os"
+
+	"github.com/gwijnja/harvester"
 )
 
 // Writer is a connector that receives files for the local filesystem.
 type Writer struct {
-	mft.BaseProcessor
+	harvester.BaseProcessor
 	Transmit string
 	ToLoad   string
 }
 
 // Process receives a file and writes it to the local filesystem.
-func (r *Writer) Process(ctx *mft.FileContext) error {
+func (r *Writer) Process(ctx *harvester.FileContext) error {
 	log.Println("[local] Writer.Process(): Called for", ctx.Filename)
 
 	path := r.Transmit + "/" + ctx.Filename
@@ -28,7 +29,7 @@ func (r *Writer) Process(ctx *mft.FileContext) error {
 
 	// Copy the ctx.Reader to the file
 	log.Println("[local] Writer.Process(): Calling AuditCopy")
-	written, err := mft.AuditCopy(f, ctx.Reader)
+	written, err := harvester.AuditCopy(f, ctx.Reader)
 	if err != nil {
 		// If the copy fails, close the file and delete it if something was created
 		log.Println("[local] Writer.Process(): error copying data after", written, "bytes:", err)

@@ -2,12 +2,11 @@ package sftp
 
 import (
 	"fmt"
-	"gwijnja/mft"
 	"io"
 	"log"
 )
 
-func (c *Connector) DownloadNew(filename string, localStorage mft.LocalStorage) (*mft.LocalFile, error) {
+func (c *Connector) DownloadNew(filename string, localStorage harvester.LocalStorage) (*harvester.LocalFile, error) {
 	// connect if needed
 	c.ReconnectIfNeeded()
 
@@ -23,7 +22,7 @@ func (c *Connector) DownloadNew(filename string, localStorage mft.LocalStorage) 
 	// return local file
 }
 
-func (c *Connector) Download(filename string, localStorage mft.LocalStorage) (*mft.LocalFile, error) {
+func (c *Connector) Download(filename string, localStorage harvester.LocalStorage) (*harvester.LocalFile, error) {
 	if c.client == nil {
 		return nil, fmt.Errorf("SFTP client is not connected")
 	}

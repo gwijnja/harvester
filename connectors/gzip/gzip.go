@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"gwijnja/mft"
 	"log"
+
+	"github.com/gwijnja/harvester"
 )
 
 type Gzipper struct {
-	mft.BaseProcessor
+	harvester.BaseProcessor
 }
 
-func (z *Gzipper) Process(ctx *mft.FileContext) error {
+func (z *Gzipper) Process(ctx *harvester.FileContext) error {
 
 	log.Println("[gzip] Gzipper.Process(): Called for", ctx.Filename)
 
@@ -24,7 +25,7 @@ func (z *Gzipper) Process(ctx *mft.FileContext) error {
 
 	// Copy the ctx.Reader to the gzip writer
 	log.Println("[gzip] Gzipper.Process(): Copying the contents from the ctx Reader to the gzip entry")
-	written, err := mft.AuditCopy(gzipWriter, ctx.Reader)
+	written, err := harvester.AuditCopy(gzipWriter, ctx.Reader)
 	if err != nil {
 		return fmt.Errorf("[gzip] Gzipper.Process(): error copying %s after %d bytes: %s", ctx.Filename, written, err)
 	}

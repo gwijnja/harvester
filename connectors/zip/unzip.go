@@ -4,20 +4,21 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
-	"gwijnja/mft"
 	"log"
+
+	"github.com/gwijnja/harvester"
 )
 
 type Unzipper struct {
-	mft.BaseProcessor
+	harvester.BaseProcessor
 }
 
-func (u *Unzipper) Process(ctx *mft.FileContext) error {
+func (u *Unzipper) Process(ctx *harvester.FileContext) error {
 	log.Println("[zip] Unzipper.Process(): Called for", ctx.Filename)
 
 	log.Println("[zip] Unzipper.Process(): Copying the io.Reader into a buffer, because the zip reader needs to known the data length. Calling AuditCopy.")
 	var buf bytes.Buffer
-	if _, err := mft.AuditCopy(&buf, ctx.Reader); err != nil {
+	if _, err := harvester.AuditCopy(&buf, ctx.Reader); err != nil {
 		return fmt.Errorf("[zip] Unzipper.Process(): unable to copy the reader into a buffer: %s", err)
 	}
 
@@ -49,7 +50,7 @@ func (u *Unzipper) Process(ctx *mft.FileContext) error {
 
 	log.Println("[zip] Unzipper.Process(): Reading the file into memory, calling AuditCopy")
 	fileBuf := new(bytes.Buffer)
-	if _, err := mft.AuditCopy(fileBuf, rc); err != nil {
+	if _, err := harvester.AuditCopy(fileBuf, rc); err != nil {
 		return fmt.Errorf("[zip] Unzipper.Process(): unable to copy the file into the buffer: %s", err)
 	}
 

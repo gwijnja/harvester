@@ -1,4 +1,4 @@
-package mft
+package harvester
 
 import (
 	"crypto/sha1"

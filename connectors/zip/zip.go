@@ -4,15 +4,16 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
-	"gwijnja/mft"
 	"log"
+
+	"github.com/gwijnja/harvester"
 )
 
 type Zipper struct {
-	mft.BaseProcessor
+	harvester.BaseProcessor
 }
 
-func (z *Zipper) Process(ctx *mft.FileContext) error {
+func (z *Zipper) Process(ctx *harvester.FileContext) error {
 
 	log.Println("[zip] Zipper.Process(): Called for", ctx.Filename)
 
@@ -31,7 +32,7 @@ func (z *Zipper) Process(ctx *mft.FileContext) error {
 
 	// Copy the ctx.Reader to the zip archive
 	log.Println("[zip] Zipper.Process(): Copying the contents from the ctx Reader to the zip entry")
-	written, err := mft.AuditCopy(zipEntryWriter, ctx.Reader)
+	written, err := harvester.AuditCopy(zipEntryWriter, ctx.Reader)
 	if err != nil {
 		return fmt.Errorf("[zip] Zipper.Process(): error copying %s after %d bytes: %s", ctx.Filename, written, err)
 	}

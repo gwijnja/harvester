@@ -2,16 +2,17 @@ package local
 
 import (
 	"fmt"
-	"gwijnja/mft"
 	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
 	"regexp"
+
+	"github.com/gwijnja/harvester"
 )
 
 type Reader struct {
-	mft.BaseProcessor
+	harvester.BaseProcessor
 	ToLoad              string
 	Loaded              string
 	FollowSymlinks      bool
@@ -20,7 +21,7 @@ type Reader struct {
 }
 
 // Process reads a file from disk and presents it to the next processor in the chain.
-func (d *Reader) Process(ctx *mft.FileContext) error {
+func (d *Reader) Process(ctx *harvester.FileContext) error {
 	log.Println("[local] Reader.Process(): Called for", ctx.Filename)
 
 	path := filepath.Join(d.ToLoad, ctx.Filename)

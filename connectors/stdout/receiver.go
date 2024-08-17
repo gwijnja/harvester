@@ -1,21 +1,22 @@
 package stdout
 
 import (
-	"gwijnja/mft"
 	"log"
 	"strings"
+
+	"github.com/gwijnja/harvester"
 )
 
 type Receiver struct {
-	mft.BaseProcessor
+	harvester.BaseProcessor
 }
 
-func (r *Receiver) Process(ctx *mft.FileContext) error {
+func (r *Receiver) Process(ctx *harvester.FileContext) error {
 	log.Println("Stdout conn: Processing", ctx.Filename)
 
 	buf := new(strings.Builder)
 
-	_, err := mft.AuditCopy(buf, ctx.Reader)
+	_, err := harvester.AuditCopy(buf, ctx.Reader)
 	if err != nil {
 		return err
 	}

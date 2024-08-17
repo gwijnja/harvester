@@ -1,16 +1,17 @@
 package strconn
 
 import (
-	"gwijnja/mft"
 	"strings"
+
+	"github.com/gwijnja/harvester"
 )
 
 type Downloader struct {
-	mft.BaseProcessor
+	harvester.BaseProcessor
 	Files map[string]string
 }
 
-func (d *Downloader) Process(ctx *mft.FileContext) error {
+func (d *Downloader) Process(ctx *harvester.FileContext) error {
 	ctx.Reader = strings.NewReader(d.Files[ctx.Filename])
 	return d.BaseProcessor.Process(ctx)
 }
