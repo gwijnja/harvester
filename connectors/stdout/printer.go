@@ -7,10 +7,12 @@ import (
 	"github.com/gwijnja/harvester"
 )
 
+// Printer prints the contents of a file to stdout
 type Printer struct {
 	harvester.BaseProcessor
 }
 
+// Process reads a file and writes the contents to stdout
 func (r *Printer) Process(ctx *harvester.FileContext) error {
 	log.Println("Stdout conn: Processing", ctx.Filename)
 

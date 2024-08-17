@@ -9,10 +9,12 @@ import (
 	"github.com/gwijnja/harvester"
 )
 
+// Gzipper compresses a file and presents it to the next processor in the chain.
 type Gzipper struct {
 	harvester.BaseProcessor
 }
 
+// Process reads a file and writes the compressed contents to the next processor
 func (z *Gzipper) Process(ctx *harvester.FileContext) error {
 
 	log.Println("[gzip] Gzipper.Process(): Called for", ctx.Filename)

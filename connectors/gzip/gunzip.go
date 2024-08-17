@@ -10,10 +10,12 @@ import (
 	"github.com/gwijnja/harvester"
 )
 
+// Gunzipper decompresses a gzip file and presents it to the next processor in the chain.
 type Gunzipper struct {
 	harvester.BaseProcessor
 }
 
+// Process reads a gzip file and writes the uncompressed contents to the next processor
 func (z *Gunzipper) Process(ctx *harvester.FileContext) error {
 
 	log.Println("[gzip] Gunzipper.Process(): Called for", ctx.Filename)

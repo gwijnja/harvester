@@ -6,6 +6,7 @@ import (
 	"log"
 )
 
+// DownloadNew downloads a file from the SFTP server, moves it to the ToLoad directory, and returns a LocalFile.
 func (c *Connector) DownloadNew(filename string, localStorage harvester.LocalStorage) (*harvester.LocalFile, error) {
 	// connect if needed
 	c.ReconnectIfNeeded()
@@ -22,6 +23,7 @@ func (c *Connector) DownloadNew(filename string, localStorage harvester.LocalSto
 	// return local file
 }
 
+// Download downloads a file from the SFTP server, moves it to the ToLoad directory, and returns a LocalFile.
 func (c *Connector) Download(filename string, localStorage harvester.LocalStorage) (*harvester.LocalFile, error) {
 	if c.client == nil {
 		return nil, fmt.Errorf("SFTP client is not connected")

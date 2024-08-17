@@ -11,6 +11,7 @@ import (
 	"github.com/gwijnja/harvester"
 )
 
+// Reader reads a file from disk and presents it to the next processor in the chain.
 type Reader struct {
 	harvester.BaseProcessor
 	ToLoad              string

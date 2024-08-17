@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// AuditCopy copies data from src to dst, while calculating a SHA-1 hash of the data and logging statistics.
 func AuditCopy(dst io.Writer, src io.Reader) (written int64, err error) {
 
 	// Prepare copy

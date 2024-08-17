@@ -7,6 +7,7 @@ import (
 	"regexp"
 )
 
+// List returns a list of files in the ToLoad directory that match the regex.
 func (c *Connector) List() ([]string, error) {
 	if c.client == nil {
 		log.Println("[sftp] List() called, connecting first.")
@@ -39,6 +40,7 @@ func (c *Connector) List() ([]string, error) {
 	return files, nil
 }
 
+// excludeDirectories returns a slice of FileInfo objects that are not directories.
 func excludeDirectories(ff []os.FileInfo) []os.FileInfo {
 	filenames := make([]os.FileInfo, 0, len(ff))
 	for _, f := range ff {
@@ -49,6 +51,7 @@ func excludeDirectories(ff []os.FileInfo) []os.FileInfo {
 	return filenames
 }
 
+// filterFiles returns a slice of FileInfo objects that match the regex.
 func filterFiles(ff []os.FileInfo, regex *regexp.Regexp) []os.FileInfo {
 	filenames := make([]os.FileInfo, 0, len(ff))
 	for _, f := range ff {

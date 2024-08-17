@@ -11,6 +11,7 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
+// connect establishes a connection to the SFTP server
 func (c *Connector) connect() error {
 	log.Printf("[sftp] Connecting to %s@%s:%d\n", c.Username, c.Host, c.Port)
 
@@ -68,6 +69,7 @@ func (c *Connector) connect() error {
 	return nil
 }
 
+// addPasswordAuth adds password authentication to the list of authentication methods
 func addPasswordAuth(auths []ssh.AuthMethod, password string) []ssh.AuthMethod {
 	if password != "" {
 		return append(auths, ssh.Password(password))
@@ -75,6 +77,7 @@ func addPasswordAuth(auths []ssh.AuthMethod, password string) []ssh.AuthMethod {
 	return auths
 }
 
+// addPrivateKeyAuth adds private key authentication to the list of authentication methods
 func addPrivateKeyAuth(auths []ssh.AuthMethod, privateKeyFile string, passphrase string) ([]ssh.AuthMethod, error) {
 	if privateKeyFile == "" {
 		return auths, nil
@@ -100,6 +103,7 @@ func addPrivateKeyAuth(auths []ssh.AuthMethod, privateKeyFile string, passphrase
 	return append(auths, ssh.PublicKeys(signer)), nil
 }
 
+// Close closes the SFTP connection
 func (c *Connector) Close() error {
 	if c.client != nil {
 		log.Println("[sftp] Closing connection")
@@ -110,11 +114,13 @@ func (c *Connector) Close() error {
 	return nil
 }
 
+// Finalize closes the SFTP connection
 func (c *Connector) Finalize() {
 	log.Println("[sftp] Finalizing...")
 	c.Close()
 }
 
+// isAlive checks if the SFTP connection is still alive
 func (c *Connector) isAlive() bool {
 	if c.client == nil {
 		return false

@@ -9,10 +9,12 @@ import (
 	"github.com/gwijnja/harvester"
 )
 
+// Unzipper extracts a file from a zip archive and presents it to the next processor in the chain.
 type Unzipper struct {
 	harvester.BaseProcessor
 }
 
+// Process reads a zip file and writes the contents of the first file to the next processor
 func (u *Unzipper) Process(ctx *harvester.FileContext) error {
 	log.Println("[zip] Unzipper.Process(): Called for", ctx.Filename)
 

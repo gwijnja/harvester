@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/sftp"
 )
 
+// Connector is a structure that holds the configuration for an SFTP connection.
 type Connector struct {
 	Name                  string
 	IntervalSec           int
