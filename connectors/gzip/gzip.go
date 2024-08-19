@@ -28,7 +28,7 @@ func (z *Gzipper) Process(ctx *harvester.FileContext) error {
 	if err != nil {
 		return fmt.Errorf("Gzipper.Process(): error copying %s after %d bytes: %s", ctx.Filename, written, err)
 	}
-	slog.Info("Copy complete", slog.String("filename", ctx.Filename), slog.Int("bytes", written))
+	slog.Info("Copy complete", slog.String("filename", ctx.Filename), slog.Int64("bytes", written))
 
 	gzipWriter.Close()
 	slog.Info("Gzip writer closed", slog.Int("buffersize", buf.Len()))
