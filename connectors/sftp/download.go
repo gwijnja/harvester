@@ -3,7 +3,7 @@ package sftp
 import (
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 )
 
 // DownloadNew downloads a file from the SFTP server, moves it to the ToLoad directory, and returns a LocalFile.
@@ -48,7 +48,7 @@ func (c *Connector) Download(filename string, localStorage harvester.LocalStorag
 	if err != nil {
 		return nil, fmt.Errorf("failed to copy remote file to local file: %s", err)
 	}
-	log.Println("Copied", written, "bytes")
+	slog.Info("Copied", slog.Int64("bytes", written))
 
 	// Move local file from Transmit to ToLoad
 	localFile, err := localStorage.MoveToToLoad(filename)

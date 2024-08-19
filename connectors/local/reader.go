@@ -3,7 +3,7 @@ package local
 import (
 	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -23,55 +23,56 @@ type Reader struct {
 
 // Process reads a file from disk and presents it to the next processor in the chain.
 func (d *Reader) Process(ctx *harvester.FileContext) error {
-	log.Println("[local] Reader.Process(): Called for", ctx.Filename)
 
 	path := filepath.Join(d.ToLoad, ctx.Filename)
-	log.Println("[local] Reader.Process(): Opening", path)
+	slog.Debug("Opening", slog.String("path", path))
 	f, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("[local] Reader.Process(): unable to open file %s: %s", path, err)
+		return fmt.Errorf("Reader.Process(): unable to open file %s: %s", path, err)
 	}
 	defer f.Close()
+	slog.Debug("Opened", slog.String("path", path))
 
 	ctx.Reader = f
 	// Remember the filename, because we need it for moving or deleting the file, and ctx.Filename may change during processing.
 	origFilename := ctx.Filename
 
-	log.Println("[local] Reader.Process(): Calling the next processor")
+	slog.Debug("Calling the next processor")
 	err = d.BaseProcessor.Process(ctx)
 	if err != nil {
-		return fmt.Errorf("[local] Reader.Process(): error processing %s: %s", path, err)
+		return fmt.Errorf("Reader.Process(): error processing %s: %s", path, err)
 	}
 
 	// After the transfer has completed succesfully, either delete the file or move it
 	if d.DeleteAfterDownload {
-		log.Println("[local] Reader.Process(): deleting", path)
+		slog.Info("Deleting", slog.String("path", path))
 		err = os.Remove(path)
 		if err != nil {
-			return fmt.Errorf("[local] Reader.Process(): the transfer was successful, but the source file (%s) could not be deleted: %s", path, err)
+			return fmt.Errorf("Reader.Process(): the transfer was successful, but the source file (%s) could not be deleted: %s", path, err)
 		}
+		slog.Info("Deleted", slog.String("path", path))
 		return nil
 	}
 
 	// Move the file from ToLoad to Loaded
+	slog.Info("Moving", slog.String("path", path))
 	err = d.MoveFile(origFilename)
 	if err != nil {
-		return fmt.Errorf("[local] Reader.Process(): error moving %s: %s", ctx.Filename, err)
+		return fmt.Errorf("Reader.Process(): error moving %s: %s", ctx.Filename, err)
 	}
 	return nil
 }
 
 func (d *Reader) List() ([]string, error) {
-	log.Println("[local] Reader.List(): Listing files in", d.ToLoad)
-
+	slog.Info("Listing files", slog.String("toload", d.ToLoad))
 	files, err := os.ReadDir(d.ToLoad)
 	if err != nil {
-		return nil, fmt.Errorf("[local] Reader.List(): unable to list files in %s: %s", d.ToLoad, err)
+		return nil, fmt.Errorf("Reader.List(): unable to list files in %s: %s", d.ToLoad, err)
 	}
-	log.Println("[local] Reader.List(): Found", len(files), "files")
+	slog.Info("Listed files", slog.Int("count", len(files)))
 
 	if d.Regex != "" {
-		log.Println("[local] Reader.List(): Filtering files with regex:", d.Regex)
+		slog.Info("Filtering files with regex", slog.String("regex", d.Regex))
 	}
 
 	filenames := make([]string, 0, len(files))
@@ -91,13 +92,15 @@ func (d *Reader) List() ([]string, error) {
 		if d.Regex != "" {
 			matched, err := regexp.MatchString(d.Regex, file.Name())
 			if err != nil {
-				return nil, fmt.Errorf("[local] Reader.List(): the regex seems invalid, error matching %s with %s: %s", d.Regex, file.Name(), err)
+				return nil, fmt.Errorf("Reader.List(): the regex seems invalid, error matching %s with %s: %s", d.Regex, file.Name(), err)
 			}
 			if !matched {
-				log.Println("[local] Reader.List(): skipping", file.Name(), "because it does not match the regex")
+				slog.Warn("Reader.List(): skipping non-matching file", slog.String("filename", file.Name()))
 				continue
 			}
 		}
+
+		slog.Info("Found file", slog.String("filename", file.Name()))
 
 		filenames = append(filenames, file.Name())
 	}
@@ -107,10 +110,11 @@ func (d *Reader) List() ([]string, error) {
 func (d *Reader) MoveFile(filename string) error {
 	from := filepath.Join(d.ToLoad, filename)
 	to := filepath.Join(d.Loaded, filename)
-	log.Println("[local] Reader.MoveFile(): moving", from, "to", to)
+	slog.Info("Moving", slog.String("from", from), slog.String("to", to))
 	err := os.Rename(from, to)
 	if err != nil {
-		return fmt.Errorf("[local] Reader.MoveFile(): unable to move %s to %s: %s", from, to, err)
+		return fmt.Errorf("Reader.MoveFile(): unable to move %s to %s: %s", from, to, err)
 	}
+	slog.Info("Moved", slog.String("from", from), slog.String("to", to))
 	return nil
 }

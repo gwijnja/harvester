@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/gwijnja/harvester"
@@ -18,32 +18,32 @@ type Gunzipper struct {
 // Process reads a gzip file and writes the uncompressed contents to the next processor
 func (z *Gunzipper) Process(ctx *harvester.FileContext) error {
 
-	log.Println("[gzip] Gunzipper.Process(): Called for", ctx.Filename)
-
 	// Create a gzip reader
-	log.Println("[gzip] Gunzipper.Process(): Creating a gzip reader")
+	slog.Info("Creating a gzip reader", slog.String("filename", ctx.Filename))
 	gzipReader, err := gzip.NewReader(ctx.Reader)
 	if err != nil {
-		return fmt.Errorf("[gzip] Gunzipper.Process(): error creating gzip reader for %s: %s", ctx.Filename, err)
+		return fmt.Errorf("Gunzipper.Process(): error creating gzip reader for %s: %s", ctx.Filename, err)
 	}
 	defer gzipReader.Close()
+	slog.Info("Gzip reader created", slog.String("filename", ctx.Filename))
 
 	// Copy the gzip reader to a buffer
 	buf := new(bytes.Buffer)
-	log.Println("[gzip] Gunzipper.Process(): Copying the contents from the gzip reader to the buffer")
+	slog.Info("Calling AuditCopy")
 	written, err := harvester.AuditCopy(buf, gzipReader)
 	if err != nil {
-		return fmt.Errorf("[gzip] Gunzipper.Process(): error copying %s after %d bytes: %s", ctx.Filename, written, err)
+		return fmt.Errorf("Gunzipper.Process(): error copying %s after %d bytes: %s", ctx.Filename, written, err)
 	}
-	log.Println("[gzip] Gunzipper.Process(): Copy complete, copied", written, "bytes")
+	slog.Info("Copy complete", slog.String("filename", ctx.Filename), slog.Int64("written", written))
 
+	// Remove the .gz suffix from the filename
 	if strings.HasSuffix(ctx.Filename, ".gz") {
-		log.Println("[gzip] Gunzipper.Process(): Removing the .gz suffix from the context filename")
 		ctx.Filename = strings.TrimSuffix(ctx.Filename, ".gz")
+		slog.Info("Removing the .gz suffix", slog.String("newname", ctx.Filename))
 	}
 
 	ctx.Reader = buf
 
-	log.Println("[gzip] Gunzipper.Process(): Calling the next processor")
+	slog.Debug("Calling the next processor")
 	return z.BaseProcessor.Process(ctx)
 }

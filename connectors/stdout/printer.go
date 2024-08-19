@@ -1,7 +1,7 @@
 package stdout
 
 import (
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/gwijnja/harvester"
@@ -14,15 +14,16 @@ type Printer struct {
 
 // Process reads a file and writes the contents to stdout
 func (r *Printer) Process(ctx *harvester.FileContext) error {
-	log.Println("Stdout conn: Processing", ctx.Filename)
 
 	buf := new(strings.Builder)
 
+	slog.Info("Calling AuditCopy")
 	_, err := harvester.AuditCopy(buf, ctx.Reader)
 	if err != nil {
+		slog.Error("Error while copying", slog.String("filename", ctx.Filename), slog.Any("error", err))
 		return err
 	}
-	log.Println("Stdout conn: Contents:", buf.String())
+	slog.Info("Copy complete", slog.String("contents", buf.String()))
 
 	return nil
 }

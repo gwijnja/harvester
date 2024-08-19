@@ -4,7 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/gwijnja/harvester"
 )
@@ -16,50 +16,54 @@ type Unzipper struct {
 
 // Process reads a zip file and writes the contents of the first file to the next processor
 func (u *Unzipper) Process(ctx *harvester.FileContext) error {
-	log.Println("[zip] Unzipper.Process(): Called for", ctx.Filename)
 
-	log.Println("[zip] Unzipper.Process(): Copying the io.Reader into a buffer, because the zip reader needs to known the data length. Calling AuditCopy.")
+	slog.Info("Copying the source into a buffer to determine the length")
 	var buf bytes.Buffer
 	if _, err := harvester.AuditCopy(&buf, ctx.Reader); err != nil {
-		return fmt.Errorf("[zip] Unzipper.Process(): unable to copy the reader into a buffer: %s", err)
+		return fmt.Errorf("Unzipper.Process(): unable to copy the reader into a buffer: %s", err)
 	}
+	slog.Debug("Buffer created", slog.Int("buffersize", buf.Len()))
 
-	log.Println("[zip] Unzipper.Process(): Wrapping the buffer with a bytes reader")
+	slog.Debug("Wrapping the buffer with a bytes reader")
 	reader := bytes.NewReader(buf.Bytes())
 
-	log.Println("[zip] Unzipper.Process(): Creating a zip reader")
+	slog.Info("Creating a zip reader")
 	zipReader, err := zip.NewReader(reader, int64(reader.Len()))
 	if err != nil {
-		return fmt.Errorf("[zip] Unzipper.Process(): unable to create reader for zip file: %s", err)
+		return fmt.Errorf("Unzipper.Process(): unable to create reader for zip file: %s", err)
 	}
+	slog.Info("Zip reader created")
 
-	log.Println("[zip] Unzipper.Process():", len(zipReader.File), "files found in the zip file")
+	slog.Info("Files found in the zip", slog.Int("count", len(zipReader.File)))
 	if len(zipReader.File) != 1 {
-		return fmt.Errorf("[zip] Unzipper.Process(): expected exactly one file in the zip, but got %d", len(zipReader.File))
+		return fmt.Errorf("Unzipper.Process(): expected exactly one file in the zip, but got %d", len(zipReader.File))
 	}
 
-	log.Println("[zip] Unzipper.Process(): Opening the first file in the zip, checking if it's not a directory")
+	slog.Info("Checking if the first file in the zip is not a directory")
 	file := zipReader.File[0]
 	if file.FileInfo().IsDir() {
-		return fmt.Errorf("[zip] Unzipper.Process(): expected a file in the zip, but got a directory")
+		return fmt.Errorf("Unzipper.Process(): expected a file in the zip, but got a directory")
 	}
 
+	slog.Info("Opening the file in the zip")
 	rc, err := file.Open()
 	if err != nil {
-		return fmt.Errorf("[zip] Unzipper.Process(): unable to open the file in the zip: %s", err)
+		return fmt.Errorf("Unzipper.Process(): unable to open the file in the zip: %s", err)
 	}
 	defer rc.Close()
+	slog.Info("File opened")
 
-	log.Println("[zip] Unzipper.Process(): Reading the file into memory, calling AuditCopy")
+	slog.Info("Calling AuditCopy to copy the file into a buffer")
 	fileBuf := new(bytes.Buffer)
 	if _, err := harvester.AuditCopy(fileBuf, rc); err != nil {
-		return fmt.Errorf("[zip] Unzipper.Process(): unable to copy the file into the buffer: %s", err)
+		return fmt.Errorf("Unzipper.Process(): unable to copy the file into the buffer: %s", err)
 	}
+	slog.Info("File copied into the buffer", slog.Int("buffersize", fileBuf.Len()))
 
-	log.Println("[zip] Unzipper.Process(): Replacing the context filename with", file.Name)
+	slog.Info("Replacing the context filename", slog.String("filename", file.Name))
 	ctx.Reader = fileBuf
 	ctx.Filename = file.Name
 
-	log.Println("[zip] Unzipper.Process(): Calling the next processor")
+	slog.Info("Calling the next processor")
 	return u.BaseProcessor.Process(ctx)
 }

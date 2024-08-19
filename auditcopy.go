@@ -4,7 +4,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"time"
 )
 
@@ -12,13 +12,12 @@ import (
 func AuditCopy(dst io.Writer, src io.Reader) (written int64, err error) {
 
 	// Prepare copy
-	log.Println("[mft] AuditCopy(): Setting up the MultiWriter")
 	hasher := sha1.New()
 	writer := io.MultiWriter(dst, hasher)
 	start := time.Now()
 
 	// Copy data
-	log.Println("[mft] AuditCopy(): Copying the data")
+	slog.Debug("Copying data")
 	written, err = io.Copy(writer, src)
 	if err != nil {
 		return written, fmt.Errorf("[mft] AuditCopy(): error copying data after %d bytes: %s", written, err)
@@ -30,9 +29,12 @@ func AuditCopy(dst io.Writer, src io.Reader) (written int64, err error) {
 	sha1hash := hasher.Sum(nil)
 
 	// Log results
-	log.Printf(
-		"[mft] AuditCopy(): %d bytes in %s (%.1f MiB/s), SHA-1: %x\n",
-		written, elapsed.String(), megabytesPerSecond, sha1hash,
+	slog.Info(
+		"Copy complete",
+		slog.Int64("written", written),
+		slog.Duration("elapsed", elapsed),
+		slog.Float64("megabytespersecond", megabytesPerSecond),
+		slog.String("sha1hash", fmt.Sprintf("%x", sha1hash)),
 	)
 
 	return

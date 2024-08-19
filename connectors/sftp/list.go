@@ -2,7 +2,7 @@ package sftp
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"regexp"
 )
@@ -10,14 +10,14 @@ import (
 // List returns a list of files in the ToLoad directory that match the regex.
 func (c *Connector) List() ([]string, error) {
 	if c.client == nil {
-		log.Println("[sftp] List() called, connecting first.")
+		slog.Info("List() called, connecting", slog.String("host", c.Host), slog.Int("port", c.Port))
 		err := c.connect()
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect before listing files: %s", err)
 		}
 	}
 
-	log.Println("[sftp] Connected, listing files.")
+	slog.Info("Connected to SFTP server", slog.String("host", c.Host), slog.Int("port", c.Port))
 
 	// List the files in the ToLoad directory, relative to the current root.
 	ff, err := c.client.ReadDir(c.ToLoad)
