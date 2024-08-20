@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"fmt"
 	"log/slog"
+	"path/filepath"
+	"strings"
 
 	"github.com/gwijnja/harvester"
 )
@@ -44,9 +46,13 @@ func (z *Zipper) Process(ctx *harvester.FileContext) error {
 
 	slog.Debug("Zip archive closed", slog.Int("buffersize", buf.Len()))
 
-	slog.Debug("Renaming the context filename", slog.String("newname", ctx.Filename+".zip"))
+	extension := filepath.Ext(ctx.Filename)
+	withoutExtension := strings.TrimSuffix(ctx.Filename, extension)
+	withZipExtension := withoutExtension + ".zip"
+
+	slog.Debug("Renaming the context filename", slog.String("newname", withZipExtension))
 	ctx.Reader = buf
-	ctx.Filename = ctx.Filename + ".zip"
+	ctx.Filename = withZipExtension
 
 	slog.Debug("Calling the next processor")
 	return z.BaseProcessor.Process(ctx)
