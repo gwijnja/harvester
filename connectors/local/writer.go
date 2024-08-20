@@ -10,7 +10,7 @@ import (
 
 // Writer is a connector that receives files for the local filesystem.
 type Writer struct {
-	harvester.BaseProcessor
+	harvester.NextProcessor
 	Transmit string
 	ToLoad   string
 }

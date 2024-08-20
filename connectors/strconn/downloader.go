@@ -8,14 +8,14 @@ import (
 
 // Downloader is a structure that holds the configuration for a string-based downloader.
 type Downloader struct {
-	harvester.BaseProcessor
+	harvester.NextProcessor
 	Files map[string]string
 }
 
 // Process reads a file and writes the contents to the next processor
 func (d *Downloader) Process(ctx *harvester.FileContext) error {
 	ctx.Reader = strings.NewReader(d.Files[ctx.Filename])
-	return d.BaseProcessor.Process(ctx)
+	return d.NextProcessor.Process(ctx)
 }
 
 // List returns a list of filenames that are available for download

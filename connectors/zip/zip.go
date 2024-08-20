@@ -13,7 +13,7 @@ import (
 
 // Zipper compresses a file and presents it to the next processor in the chain.
 type Zipper struct {
-	harvester.BaseProcessor
+	harvester.NextProcessor
 }
 
 // Process reads a file and writes the compressed contents to the next processor
@@ -51,9 +51,9 @@ func (z *Zipper) Process(ctx *harvester.FileContext) error {
 	withZipExtension := withoutExtension + ".zip"
 
 	slog.Debug("Renaming the context filename", slog.String("newname", withZipExtension))
-	ctx.Reader = buf
+	ctx.Reader = bytes.NewReader(buf.Bytes())
 	ctx.Filename = withZipExtension
 
 	slog.Debug("Calling the next processor")
-	return z.BaseProcessor.Process(ctx)
+	return z.NextProcessor.Process(ctx)
 }

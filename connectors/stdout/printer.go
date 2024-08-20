@@ -9,7 +9,7 @@ import (
 
 // Printer prints the contents of a file to stdout
 type Printer struct {
-	harvester.BaseProcessor
+	harvester.NextProcessor
 }
 
 // Process reads a file and writes the contents to stdout

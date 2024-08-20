@@ -11,7 +11,7 @@ import (
 
 // Unzipper extracts a file from a zip archive and presents it to the next processor in the chain.
 type Unzipper struct {
-	harvester.BaseProcessor
+	harvester.NextProcessor
 }
 
 // Process reads a zip file and writes the contents of the first file to the next processor
@@ -22,9 +22,8 @@ func (u *Unzipper) Process(ctx *harvester.FileContext) error {
 	if _, err := harvester.AuditCopy(&buf, ctx.Reader); err != nil {
 		return fmt.Errorf("Unzipper.Process(): unable to copy the reader into a buffer: %s", err)
 	}
-	slog.Debug("Buffer created", slog.Int("buffersize", buf.Len()))
 
-	slog.Debug("Wrapping the buffer with a bytes reader")
+	slog.Debug("Buffer created, wrapping it in a bytes reader.", slog.Int("buffersize", buf.Len()))
 	reader := bytes.NewReader(buf.Bytes())
 
 	slog.Info("Creating a zip reader")
@@ -32,7 +31,6 @@ func (u *Unzipper) Process(ctx *harvester.FileContext) error {
 	if err != nil {
 		return fmt.Errorf("Unzipper.Process(): unable to create reader for zip file: %s", err)
 	}
-	slog.Info("Zip reader created")
 
 	slog.Info("Files found in the zip", slog.Int("count", len(zipReader.File)))
 	if len(zipReader.File) != 1 {
@@ -51,19 +49,17 @@ func (u *Unzipper) Process(ctx *harvester.FileContext) error {
 		return fmt.Errorf("Unzipper.Process(): unable to open the file in the zip: %s", err)
 	}
 	defer rc.Close()
-	slog.Info("File opened")
 
 	slog.Info("Calling AuditCopy to copy the file into a buffer")
 	fileBuf := new(bytes.Buffer)
 	if _, err := harvester.AuditCopy(fileBuf, rc); err != nil {
 		return fmt.Errorf("Unzipper.Process(): unable to copy the file into the buffer: %s", err)
 	}
-	slog.Info("File copied into the buffer", slog.Int("buffersize", fileBuf.Len()))
 
 	slog.Info("Replacing the context filename", slog.String("filename", file.Name))
-	ctx.Reader = fileBuf
+	ctx.Reader = bytes.NewReader(fileBuf.Bytes())
 	ctx.Filename = file.Name
 
 	slog.Info("Calling the next processor")
-	return u.BaseProcessor.Process(ctx)
+	return u.NextProcessor.Process(ctx)
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type Renamer struct {
-	BaseProcessor
+	NextProcessor
 	Regex  string // Example: "(\\d{4})-(\\d{2})-(\\d{2})"
 	Format string // Example: "$1$2$3.txt"
 }
@@ -38,5 +38,5 @@ func (r *Renamer) Process(ctx *FileContext) error {
 	ctx.Filename = newFilename
 
 	// Call next processor
-	return r.BaseProcessor.Process(ctx)
+	return r.NextProcessor.Process(ctx)
 }

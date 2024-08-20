@@ -11,7 +11,7 @@ import (
 
 // Gzipper compresses a file and presents it to the next processor in the chain.
 type Gzipper struct {
-	harvester.BaseProcessor
+	harvester.NextProcessor
 }
 
 // Process reads a file and writes the compressed contents to the next processor
@@ -34,9 +34,9 @@ func (z *Gzipper) Process(ctx *harvester.FileContext) error {
 	slog.Info("Gzip writer closed", slog.Int("buffersize", buf.Len()))
 
 	slog.Info("Renaming context filename", slog.String("filename", ctx.Filename+".gz"))
-	ctx.Reader = buf
+	ctx.Reader = bytes.NewReader(buf.Bytes())
 	ctx.Filename = ctx.Filename + ".gz"
 
 	slog.Debug("Calling the next processor")
-	return z.BaseProcessor.Process(ctx)
+	return z.NextProcessor.Process(ctx)
 }

@@ -1,5 +1,6 @@
 package sftp
 
+/*
 import (
 	"fmt"
 	"io"
@@ -57,3 +58,4 @@ func (c *Connector) Download(filename string, localStorage harvester.LocalStorag
 	}
 	return localFile, nil
 }
+*/

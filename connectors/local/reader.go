@@ -13,7 +13,7 @@ import (
 
 // Reader reads a file from disk and presents it to the next processor in the chain.
 type Reader struct {
-	harvester.BaseProcessor
+	harvester.NextProcessor
 	ToLoad              string
 	Loaded              string
 	FollowSymlinks      bool
@@ -38,7 +38,7 @@ func (d *Reader) Process(ctx *harvester.FileContext) error {
 	origFilename := ctx.Filename
 
 	slog.Debug("Calling the next processor")
-	err = d.BaseProcessor.Process(ctx)
+	err = d.NextProcessor.Process(ctx)
 	if err != nil {
 		return fmt.Errorf("Reader.Process(): error processing %s: %s", path, err)
 	}

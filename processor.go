@@ -14,18 +14,18 @@ type Receiver interface {
 	List() ([]string, error)
 }
 
-// BaseProcessor is a struct that holds the next processor in the chain.
-type BaseProcessor struct {
+// NextProcessor is a struct that holds the next processor in the chain.
+type NextProcessor struct {
 	next Processor
 }
 
 // SetNext sets the next processor in the chain.
-func (b *BaseProcessor) SetNext(next Processor) {
+func (b *NextProcessor) SetNext(next Processor) {
 	b.next = next
 }
 
 // Process calls the next processor in the chain, if it exists.
-func (b *BaseProcessor) Process(ctx *FileContext) error {
+func (b *NextProcessor) Process(ctx *FileContext) error {
 	if b.next != nil {
 		return b.next.Process(ctx)
 	}
@@ -35,5 +35,5 @@ func (b *BaseProcessor) Process(ctx *FileContext) error {
 // FileContext is a struct that contains a filename and a reader.
 type FileContext struct {
 	Filename string
-	Reader   io.Reader
+	Reader   io.ReadSeeker
 }

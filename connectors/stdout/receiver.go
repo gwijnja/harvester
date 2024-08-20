@@ -9,7 +9,7 @@ import (
 
 // Receiver prints the contents of a file to stdout
 type Receiver struct {
-	harvester.BaseProcessor
+	harvester.NextProcessor
 }
 
 // Process reads a file and writes the contents to stdout

@@ -12,7 +12,7 @@ import (
 
 // Gunzipper decompresses a gzip file and presents it to the next processor in the chain.
 type Gunzipper struct {
-	harvester.BaseProcessor
+	harvester.NextProcessor
 }
 
 // Process reads a gzip file and writes the uncompressed contents to the next processor
@@ -42,8 +42,8 @@ func (z *Gunzipper) Process(ctx *harvester.FileContext) error {
 		slog.Info("Removing the .gz suffix", slog.String("newname", ctx.Filename))
 	}
 
-	ctx.Reader = buf
+	ctx.Reader = bytes.NewReader(buf.Bytes())
 
 	slog.Debug("Calling the next processor")
-	return z.BaseProcessor.Process(ctx)
+	return z.NextProcessor.Process(ctx)
 }
