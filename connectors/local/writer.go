@@ -44,7 +44,7 @@ func (r *Writer) Process(ctx *harvester.FileContext) error {
 	// Move the file from Transmit to ToLoad
 	dest := fmt.Sprintf("%s/%s", r.ToLoad, ctx.Filename)
 	slog.Info("Moving", slog.String("from", path), slog.String("to", dest))
-	err = os.Rename(path, r.ToLoad+"/"+ctx.Filename)
+	err = os.Rename(path, dest)
 	if err != nil {
 		// TODO: if the ToLoad directory does not exist, the error is wait too long and confusing.
 		slog.Error("Error while moving", slog.String("from", path), slog.String("to", dest), slog.Any("error", err))

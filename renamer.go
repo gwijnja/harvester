@@ -21,7 +21,7 @@ func (r *Renamer) Process(ctx *FileContext) error {
 		return fmt.Errorf("unable to compile regex: %s", err)
 	}
 
-	slog.Debug("Matching regex", slog.String("regex", r.Regex), slog.String("filename", ctx.Filename))
+	slog.Debug("Matching regex", slog.String("filename", ctx.Filename))
 	matches := re.FindStringSubmatch(ctx.Filename)
 	if len(matches) == 0 {
 		return fmt.Errorf("no matches found for regex: %s", r.Regex)
