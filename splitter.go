@@ -3,6 +3,7 @@ package harvester
 import (
 	"fmt"
 	"io"
+	"log/slog"
 )
 
 type Splitter struct {
@@ -28,22 +29,30 @@ func (s *Splitter) Process(ctx *FileContext) error {
 	}
 
 	// Call the first processor
+	slog.Info("Calling the first processor")
 	err := s.first.Process(ctx)
 	if err != nil {
 		return fmt.Errorf("first processor failed: %s", err)
 	}
 
+	// Restore the reader and the filename
+	ctx.Filename = backup.Filename
+	ctx.Reader = backup.Reader
+
 	// Seek to the beginning
+	slog.Info("Seeking to the beginning")
 	_, err = ctx.Reader.Seek(0, io.SeekStart)
 	if err != nil {
 		return fmt.Errorf("failed to seek to the beginning: %s", err)
 	}
 
 	// Call the second processor
+	slog.Info("Calling the second processor")
 	err = s.NextProcessor.Process(backup)
 	if err != nil {
 		return fmt.Errorf("second processor failed: %s", err)
 	}
 
+	slog.Info("Splitter done")
 	return nil
 }

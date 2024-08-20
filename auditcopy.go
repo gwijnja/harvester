@@ -25,16 +25,14 @@ func AuditCopy(dst io.Writer, src io.Reader) (written int64, err error) {
 
 	// Gather statistics
 	elapsed := time.Since(start)
-	megabytesPerSecond := float64(written) / (1048576 * elapsed.Seconds())
 	sha1hash := hasher.Sum(nil)
 
 	// Log results
 	slog.Info(
 		"Copy complete",
-		slog.Int64("written", written),
-		slog.Duration("elapsed", elapsed),
-		slog.Float64("megabytespersecond", megabytesPerSecond),
-		slog.String("sha1hash", fmt.Sprintf("%x", sha1hash)),
+		slog.Int64("bytes", written),
+		slog.Int64("usec", elapsed.Microseconds()),
+		slog.String("sha1", fmt.Sprintf("%x", sha1hash)),
 	)
 
 	return
