@@ -2,6 +2,7 @@ package local
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -22,48 +23,43 @@ type Archiver struct {
 }
 
 // Process receives a file and writes it to the local filesystem.
-func (r *Archiver) Process(ctx *harvester.FileContext) error {
+func (a *Archiver) Process(filename string, r io.Reader) error {
 
 	// Prepare the archive directory
-	archiveDir, err := r.PrepArchiveDir(ctx.Filename)
+	archiveDir, err := a.PrepArchiveDir(filename)
 	if err != nil {
-		return fmt.Errorf("[local] Archiver.Process(): unable to prepare archive directory: %s", err)
+		return fmt.Errorf("unable to prepare archive directory: %s", err)
 	}
 
-	transmitPath := r.Transmit + "/" + ctx.Filename
-	slog.Info("Creating file", slog.String("path", transmitPath))
-
+	transmitPath := filepath.Join(a.Transmit, filename)
+	slog.Info("Creating transmit file", slog.String("path", transmitPath))
 	f, err := os.Create(transmitPath)
 	if err != nil {
-		return fmt.Errorf("[local] Archiver.Process(): unable to open file %s: %s", transmitPath, err)
+		return fmt.Errorf("unable to open transmit file %s: %s", transmitPath, err)
 	}
 	defer f.Close()
 	slog.Info("File created", slog.String("path", transmitPath))
 
-	// Copy the ctx.Reader to the file
-	slog.Info("Calling AuditCopy")
-	written, err := harvester.AuditCopy(f, ctx.Reader)
-	if err != nil {
-		// If the copy fails, close the file and delete it if something was created
-		slog.Error("Error while copying", slog.String("path", transmitPath), slog.Any("error", err), slog.Int64("written", written))
-		slog.Info("Closing and removing", slog.String("path", transmitPath))
-		f.Close()
-		os.Remove(transmitPath)
-		return fmt.Errorf("[local] Archiver.Process(): error copying %s after %d bytes: %s", transmitPath, written, err)
-	}
-	slog.Info("Copy complete", slog.String("path", transmitPath), slog.Int64("written", written))
+	tee := io.TeeReader(r, f)
 
-	// Move the file from Transmit to ToLoad
-	archivePath := filepath.Join(archiveDir, ctx.Filename)
+	// Forward the reader to the next processor
+	slog.Info("Calling NextProcessor.Process")
+	err = a.NextProcessor.Process(filename, tee)
+	if err != nil {
+		slog.Error("tee process returned error, deleting transming file from archive.")
+		os.Remove(transmitPath)
+		return fmt.Errorf("error processing %s: %s", filename, err)
+	}
+
+	// Close the file
+	f.Close()
+
+	// Move it to the final archive directory
+	archivePath := filepath.Join(archiveDir, filename)
 	slog.Info("Moving", slog.String("from", transmitPath), slog.String("to", archivePath))
 	err = os.Rename(transmitPath, archivePath)
 	if err != nil {
-		// TODO: if the ToLoad directory does not exist, the error is wait too long and confusing.
 		slog.Error("Error while moving", slog.String("from", transmitPath), slog.String("to", archivePath), slog.Any("error", err))
-		slog.Info("Closing and removing", slog.String("path", transmitPath))
-		f.Close()
-		os.Remove(transmitPath)
-		// TODO: dubbele errors, moet eigenlijk niet he...
 		return fmt.Errorf("error moving %s: %s", transmitPath, err)
 	}
 
@@ -74,7 +70,8 @@ func (r *Archiver) Process(ctx *harvester.FileContext) error {
 func (r *Archiver) PrepArchiveDir(filename string) (string, error) {
 	subPath, err := r.MatchPath(filename)
 	if err != nil {
-		return "", fmt.Errorf("unable to match path: %s", err)
+		slog.Warn("Unable to match archive path to filename, file will be placed in archive root", slog.String("filename", filename))
+		subPath = ""
 	}
 
 	fullPath := filepath.Join(r.Archive, subPath)
@@ -87,6 +84,7 @@ func (r *Archiver) PrepArchiveDir(filename string) (string, error) {
 	return fullPath, nil
 }
 
+// MatchPath matches the filename with the regex and formats the archive path.
 func (r *Archiver) MatchPath(filename string) (string, error) {
 
 	slog.Debug("Compiling regex", slog.String("regex", r.Regex))

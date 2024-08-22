@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
+	"io"
 	"log/slog"
 
 	"github.com/gwijnja/harvester"
@@ -15,11 +16,11 @@ type Unzipper struct {
 }
 
 // Process reads a zip file and writes the contents of the first file to the next processor
-func (u *Unzipper) Process(ctx *harvester.FileContext) error {
+func (u *Unzipper) Process(filename string, r io.Reader) error {
 
 	slog.Info("Copying the source into a buffer to determine the length")
 	var buf bytes.Buffer
-	if _, err := harvester.AuditCopy(&buf, ctx.Reader); err != nil {
+	if _, err := harvester.AuditCopy(&buf, r); err != nil {
 		return fmt.Errorf("Unzipper.Process(): unable to copy the reader into a buffer: %s", err)
 	}
 
@@ -44,22 +45,22 @@ func (u *Unzipper) Process(ctx *harvester.FileContext) error {
 	}
 
 	slog.Info("Opening the file in the zip")
-	rc, err := file.Open()
+	readCloser, err := file.Open()
 	if err != nil {
 		return fmt.Errorf("Unzipper.Process(): unable to open the file in the zip: %s", err)
 	}
-	defer rc.Close()
+	defer readCloser.Close()
 
 	slog.Info("Calling AuditCopy to copy the file into a buffer")
 	fileBuf := new(bytes.Buffer)
-	if _, err := harvester.AuditCopy(fileBuf, rc); err != nil {
+	if _, err := harvester.AuditCopy(fileBuf, readCloser); err != nil {
 		return fmt.Errorf("Unzipper.Process(): unable to copy the file into the buffer: %s", err)
 	}
 
 	slog.Info("Replacing the context filename", slog.String("filename", file.Name))
-	ctx.Reader = bytes.NewReader(fileBuf.Bytes())
-	ctx.Filename = file.Name
+	r = bytes.NewReader(fileBuf.Bytes())
+	filename = file.Name
 
 	slog.Info("Calling the next processor")
-	return u.NextProcessor.Process(ctx)
+	return u.NextProcessor.Process(filename, r)
 }

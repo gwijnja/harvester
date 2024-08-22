@@ -2,23 +2,25 @@ package local
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 
 	"github.com/gwijnja/harvester"
 )
 
-// Writer is a connector that receives files for the local filesystem.
-type Writer struct {
+// FileWriter is a connector that receives files for the local filesystem.
+type FileWriter struct {
 	harvester.NextProcessor
 	Transmit string
 	ToLoad   string
 }
 
 // Process receives a file and writes it to the local filesystem.
-func (r *Writer) Process(ctx *harvester.FileContext) error {
+func (w *FileWriter) Process(filename string, r io.Reader) error {
 
-	path := r.Transmit + "/" + ctx.Filename
+	path := filepath.Join(w.Transmit, filename)
 	slog.Info("Creating file", slog.String("path", path))
 
 	f, err := os.Create(path)
@@ -28,9 +30,9 @@ func (r *Writer) Process(ctx *harvester.FileContext) error {
 	defer f.Close()
 	slog.Info("File created", slog.String("path", path))
 
-	// Copy the ctx.Reader to the file
+	// Copy the r to the file
 	slog.Info("Calling AuditCopy")
-	written, err := harvester.AuditCopy(f, ctx.Reader)
+	written, err := harvester.AuditCopy(f, r)
 	if err != nil {
 		// If the copy fails, close the file and delete it if something was created
 		slog.Error("Error while copying", slog.String("path", path), slog.Any("error", err), slog.Int64("written", written))
@@ -42,7 +44,7 @@ func (r *Writer) Process(ctx *harvester.FileContext) error {
 	slog.Info("Copy complete", slog.String("path", path), slog.Int64("written", written))
 
 	// Move the file from Transmit to ToLoad
-	dest := fmt.Sprintf("%s/%s", r.ToLoad, ctx.Filename)
+	dest := fmt.Sprintf("%s/%s", w.ToLoad, filename)
 	slog.Info("Moving", slog.String("from", path), slog.String("to", dest))
 	err = os.Rename(path, dest)
 	if err != nil {
