@@ -2,12 +2,6 @@ package harvester
 
 import "io"
 
-// Processor is an interface that defines a Process method that takes a FileContext and returns an error.
-type Processor interface {
-	Process(ctx *FileContext) error
-	SetNext(next FileWriter)
-}
-
 // NextProcessor is a struct that holds the next processor in the chain.
 type NextProcessor struct {
 	next FileWriter
