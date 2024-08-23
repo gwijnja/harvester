@@ -11,7 +11,7 @@ import (
 )
 
 type FileReader struct {
-	FtpConnector
+	Connector
 	ToLoad              string
 	Loaded              string
 	Regex               string

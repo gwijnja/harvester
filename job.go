@@ -2,6 +2,7 @@ package harvester
 
 import (
 	"log/slog"
+	"runtime"
 	"time"
 )
 
@@ -20,7 +21,7 @@ func NewJob(r FileReader, w FileWriter) *job {
 	}
 }
 
-func (j *job) Add(w FileWriter) {
+func (j *job) Insert(w FileWriter) {
 	j.Processors = append(j.Processors, w)
 }
 
@@ -38,25 +39,24 @@ func (j *job) Run(interval time.Duration) error {
 			slog.Error("Error while processing files", slog.Any("error", err))
 		}
 
-		slog.Info("Sleeping", slog.Duration("duration", interval))
+		j.logMemoryUsage()
+		slog.Info("Sleeping...", slog.Duration("duration", interval))
 		time.Sleep(interval)
 	}
 }
 
 func (j *job) processFiles() error {
-	slog.Info("Getting a list of files from the reader")
+	slog.Info("job: Getting a list of files from the reader")
 	filenames, err := j.Reader.List()
-	slog.Debug("here")
 	if err != nil {
 		return err
 	}
-	slog.Debug("Got a list of files from the reader", slog.Any("filenames", filenames))
 
 	for _, filename := range filenames {
-		slog.Info("Processing file", slog.String("filename", filename))
+		slog.Info("job: Processing file", slog.String("filename", filename))
 		err := j.Reader.Process(filename)
 		if err != nil {
-			slog.Error("Error while processing file", slog.String("filename", filename), slog.Any("error", err))
+			slog.Error("job: Error while processing file", slog.String("filename", filename), slog.Any("error", err))
 			continue
 		}
 	}
@@ -80,4 +80,12 @@ func (j *job) createChain() {
 	} else {
 		j.Reader.SetNext(j.Writer)
 	}
+}
+
+func (j *job) logMemoryUsage() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	allocated := int64(float64(m.Alloc) / 1024)
+	slog.Info("job: Current allocated heap memory", slog.Int64("kB", allocated))
+
 }

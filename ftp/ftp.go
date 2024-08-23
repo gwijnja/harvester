@@ -7,14 +7,14 @@ import (
 	"github.com/jlaffaye/ftp"
 )
 
-type FtpConnector struct {
+type Connector struct {
 	Host     string
 	Port     int
 	Username string
 	Password string
 }
 
-func (c *FtpConnector) connect() (*ftp.ServerConn, error) {
+func (c *Connector) connect() (*ftp.ServerConn, error) {
 	slog.Info("Connecting to FTP server", slog.String("host", c.Host), slog.Int("port", c.Port))
 	conn, err := ftp.Dial(fmt.Sprintf("%s:%d", c.Host, c.Port))
 	if err != nil {

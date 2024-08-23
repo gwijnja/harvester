@@ -11,7 +11,7 @@ import (
 )
 
 type FileWriter struct {
-	FtpConnector
+	Connector
 	Transmit string
 	ToLoad   string
 }

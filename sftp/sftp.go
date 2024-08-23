@@ -23,30 +23,6 @@ type Connector struct {
 	Passphrase            string
 }
 
-/*
-func (c *Connector) reconnectIfNeeded() error {
-	if c.client == nil {
-		slog.Info("SFTP client is not connected, connecting")
-		return c.connect()
-	}
-
-	if !c.isAlive() {
-		slog.Info("SFTP client is dead, reconnecting")
-		return c.connect()
-	}
-
-	return nil
-}
-
-func (c *Connector) isAlive() bool {
-	if c.client == nil {
-		return false
-	}
-	_, err := c.client.Stat("/")
-	return err == nil
-}
-*/
-
 // connect establishes a connection to the SFTP server
 func (c *Connector) connect() (*Connection, error) {
 
@@ -85,7 +61,7 @@ func (c *Connector) connect() (*Connection, error) {
 
 	// Connect to the SSH server
 	addr := fmt.Sprintf("%s:%d", c.Host, c.Port)
-	slog.Info("sftp: Dialing", slog.String("address", addr))
+	slog.Info("sftp: Connecting to SSH", slog.String("address", addr), slog.String("username", c.Username))
 	sshClient, err := ssh.Dial("tcp", addr, &config)
 	if err != nil {
 		return nil, fmt.Errorf("sftp: failed to dial: %s", err)
