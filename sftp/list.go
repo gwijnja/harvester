@@ -10,7 +10,7 @@ import (
 
 // List returns a list of files in the ToLoad directory that match the regex.
 func (r *FileReader) List() ([]string, error) {
-	r.ReconnectIfNeeded()
+	r.Connector.reconnectIfNeeded()
 
 	// List the files in the ToLoad directory, relative to the current root.
 	slog.Info("sftp: Listing files", slog.String("directory", r.ToLoad))
@@ -33,6 +33,9 @@ func (r *FileReader) List() ([]string, error) {
 	files := make([]string, 0, len(ff))
 	for _, f := range ff {
 		files = append(files, f.Name())
+		if r.MaxFiles > 0 && len(files) >= r.MaxFiles {
+			break
+		}
 	}
 
 	slog.Info("sftp: Found files", slog.Int("count", len(files)))

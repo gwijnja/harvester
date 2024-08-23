@@ -13,13 +13,14 @@ type FileReader struct {
 	ToLoad              string
 	Loaded              string
 	Regex               string
+	MaxFiles            int
 	DeleteAfterDownload bool
 	harvester.NextProcessor
 }
 
 // Process downloads the file from the SFTP server and calls the next processor.
 func (r *FileReader) Process(filename string) error {
-	err := r.ReconnectIfNeeded()
+	err := r.Connector.reconnectIfNeeded()
 	if err != nil {
 		return fmt.Errorf("failed to reconnect: %s", err)
 	}
@@ -58,18 +59,4 @@ func (r *FileReader) Process(filename string) error {
 
 	return nil
 
-}
-
-func (r *FileReader) ReconnectIfNeeded() error {
-	if r.Connector.client == nil {
-		slog.Info("SFTP client is not connected, connecting")
-		return r.Connector.connect()
-	}
-
-	if !r.Connector.isAlive() {
-		slog.Info("SFTP client is dead, reconnecting")
-		return r.Connector.connect()
-	}
-
-	return nil
 }

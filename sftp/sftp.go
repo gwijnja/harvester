@@ -25,6 +25,20 @@ type Connector struct {
 	client                *sftp.Client
 }
 
+func (c *Connector) reconnectIfNeeded() error {
+	if c.client == nil {
+		slog.Info("SFTP client is not connected, connecting")
+		return c.connect()
+	}
+
+	if !c.isAlive() {
+		slog.Info("SFTP client is dead, reconnecting")
+		return c.connect()
+	}
+
+	return nil
+}
+
 func (c *Connector) isAlive() bool {
 	if c.client == nil {
 		return false
@@ -86,6 +100,7 @@ func (c *Connector) connect() error {
 	}
 
 	c.client = client
+
 	return nil
 }
 
