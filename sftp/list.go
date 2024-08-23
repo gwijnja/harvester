@@ -10,11 +10,15 @@ import (
 
 // List returns a list of files in the ToLoad directory that match the regex.
 func (r *FileReader) List() ([]string, error) {
-	r.Connector.reconnectIfNeeded()
+	conn, err := r.Connector.connect()
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect: %s", err)
+	}
+	defer conn.Close()
 
 	// List the files in the ToLoad directory, relative to the current root.
 	slog.Info("sftp: Listing files", slog.String("directory", r.ToLoad))
-	ff, err := r.Connector.client.ReadDir(r.ToLoad)
+	ff, err := conn.sftpClient.ReadDir(r.ToLoad)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list files in %s: %s", r.ToLoad, err)
 	}

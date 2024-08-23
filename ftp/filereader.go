@@ -27,18 +27,18 @@ func (c *FileReader) SetNext(next harvester.FileWriter) {
 func (c *FileReader) List() ([]string, error) {
 
 	// Connect
-	err := c.connect()
+	conn, err := c.connect()
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		slog.Debug("Reader: quitting connection")
-		c.connection.Quit()
+		slog.Debug("ftp: closing connection")
+		conn.Quit()
 	}()
 
 	// List files
 	slog.Info("Reader: listing files", slog.String("path", c.ToLoad))
-	entries, err := c.connection.List(c.ToLoad)
+	entries, err := conn.List(c.ToLoad)
 	if err != nil {
 		return nil, fmt.Errorf("reader: error listing files in %s: %s", c.ToLoad, err)
 	}
@@ -48,49 +48,51 @@ func (c *FileReader) List() ([]string, error) {
 }
 
 func (c *FileReader) Process(filename string) error {
-	err := c.connect()
+	conn, err := c.connect()
 	if err != nil {
 		return err
 	}
 	defer func() {
-		slog.Debug("Reader: quitting connection")
-		c.connection.Quit()
+		slog.Debug("ftp: closing connection")
+		conn.Quit()
 	}()
 
 	// Set the transfer type to binary
 	slog.Debug("Reader: setting transfer type to binary")
-	err = c.connection.Type(ftp.TransferTypeBinary)
+	err = conn.Type(ftp.TransferTypeBinary)
 	if err != nil {
 		return fmt.Errorf("reader: error setting transfer type to binary: %s", err)
 	}
 
-	path := filepath.Join(c.ToLoad, filename)
-	r, err := c.connection.Retr(path)
+	toLoadPath := filepath.Join(c.ToLoad, filename)
+	r, err := conn.Retr(toLoadPath)
 	if err != nil {
-		return fmt.Errorf("reader: error retrieving file %s: %s", path, err)
+		return fmt.Errorf("reader: error retrieving file %s: %s", toLoadPath, err)
 	}
+	defer r.Close() // just in case we exit early for some reason
 
 	err = c.next.Process(filename, r)
 	if err != nil {
 		return fmt.Errorf("reader: error processing file %s: %s", filename, err)
 	}
-	r.Close()
+	r.Close() // close implicitly, because we're going to delete or move the file
 
 	// Move the file from ToLoad to Loaded, or delete it
 	if c.DeleteAfterDownload {
-		slog.Info("Reader: deleting file", slog.String("path", path))
-		err = c.connection.Delete(path)
+		slog.Info("Reader: deleting file", slog.String("path", toLoadPath))
+		err = conn.Delete(toLoadPath)
 		if err != nil {
-			return fmt.Errorf("reader: error deleting file %s: %s", path, err)
+			return fmt.Errorf("reader: error deleting file %s: %s", toLoadPath, err)
 		}
 		return nil
 	}
 
-	newPath := filepath.Join(c.Loaded, filename)
-	slog.Info("Reader: renaming file", slog.String("from", path), slog.String("to", newPath))
-	err = c.connection.Rename(path, newPath)
+	// Move the file from toLoad to loaded
+	loadedPath := filepath.Join(c.Loaded, filename)
+	slog.Info("Reader: renaming file", slog.String("from", toLoadPath), slog.String("to", loadedPath))
+	err = conn.Rename(toLoadPath, loadedPath)
 	if err != nil {
-		return fmt.Errorf("reader: error renaming file %s to %s: %s", path, newPath, err)
+		return fmt.Errorf("reader: error renaming file %s to %s: %s", toLoadPath, loadedPath, err)
 	}
 
 	return nil

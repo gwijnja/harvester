@@ -18,12 +18,16 @@ type FileWriter struct {
 func (w *FileWriter) SetNext(next harvester.FileWriter) {}
 
 func (w *FileWriter) Process(filename string, r io.Reader) error {
-	w.Connector.reconnectIfNeeded()
+	conn, err := w.Connector.connect()
+	if err != nil {
+		return fmt.Errorf("failed to connect: %s", err)
+	}
+	defer conn.Close()
 
 	// Open the file to write to
 	transmitPath := filepath.Join(w.Transmit, filename)
 	slog.Info("sftp: Opening file", slog.String("filename", transmitPath))
-	f, err := w.Connector.client.Create(transmitPath)
+	f, err := conn.sftpClient.Create(transmitPath)
 	if err != nil {
 		return fmt.Errorf("failed to create remote file %s: %s", transmitPath, err)
 	}
@@ -39,7 +43,7 @@ func (w *FileWriter) Process(filename string, r io.Reader) error {
 	// Move the file to the toload directory
 	toLoadPath := filepath.Join(w.ToLoad, filename)
 	slog.Info("sftp: Moving file", slog.String("from", transmitPath), slog.String("to", toLoadPath))
-	err = w.Connector.client.Rename(transmitPath, toLoadPath) // TODO: Use PosixRename?
+	err = conn.sftpClient.Rename(transmitPath, toLoadPath) // TODO: Use PosixRename?
 	if err != nil {
 		return fmt.Errorf("failed to move file from %s to %s: %s", transmitPath, toLoadPath, err)
 	}

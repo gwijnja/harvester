@@ -19,24 +19,24 @@ type FileWriter struct {
 func (w *FileWriter) SetNext(next harvester.FileWriter) {}
 
 func (w *FileWriter) Process(filename string, r io.Reader) error {
-	err := w.connect()
+	conn, err := w.connect()
 	if err != nil {
 		return err
 	}
 	defer func() {
-		slog.Debug("Writer: Quitting connection")
-		w.connection.Quit()
+		slog.Debug("ftp: closing connection")
+		conn.Quit()
 	}()
 
 	// Set the transfer type to binary
 	slog.Debug("Writer: setting transfer type to binary")
-	err = w.connection.Type(ftp.TransferTypeBinary)
+	err = conn.Type(ftp.TransferTypeBinary)
 	if err != nil {
 		return fmt.Errorf("writer: error setting transfer type to binary: %s", err)
 	}
 
 	transmitPath := filepath.Join(w.Transmit, filename)
-	err = w.connection.Stor(transmitPath, r)
+	err = conn.Stor(transmitPath, r)
 	if err != nil {
 		return fmt.Errorf("writer: error storing file %s: %s", transmitPath, err)
 	}
@@ -44,7 +44,7 @@ func (w *FileWriter) Process(filename string, r io.Reader) error {
 	// Move the file from Transmit to ToLoad
 	toLoadPath := filepath.Join(w.ToLoad, filename)
 	slog.Info("Writer: renaming file", slog.String("from", transmitPath), slog.String("to", toLoadPath))
-	err = w.connection.Rename(transmitPath, toLoadPath)
+	err = conn.Rename(transmitPath, toLoadPath)
 	if err != nil {
 		return fmt.Errorf("writer: error renaming file %s to %s: %s", transmitPath, toLoadPath, err)
 	}

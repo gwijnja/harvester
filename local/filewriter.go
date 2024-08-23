@@ -20,41 +20,42 @@ type FileWriter struct {
 // Process receives a file and writes it to the local filesystem.
 func (w *FileWriter) Process(filename string, r io.Reader) error {
 
-	path := filepath.Join(w.Transmit, filename)
-	slog.Info("Creating file", slog.String("path", path))
+	transmitPath := filepath.Join(w.Transmit, filename)
+	slog.Info("Creating file", slog.String("path", transmitPath))
 
-	f, err := os.Create(path)
+	f, err := os.Create(transmitPath)
 	if err != nil {
-		return fmt.Errorf("[local] Writer.Process(): unable to open file %s: %s", path, err)
+		return fmt.Errorf("[local] Writer.Process(): unable to open file %s: %s", transmitPath, err)
 	}
 	defer f.Close()
-	slog.Info("File created", slog.String("path", path))
+	slog.Info("File created", slog.String("path", transmitPath))
 
 	// Copy the r to the file
 	slog.Info("Calling AuditCopy")
 	written, err := harvester.AuditCopy(f, r)
 	if err != nil {
 		// If the copy fails, close the file and delete it if something was created
-		slog.Error("Error while copying", slog.String("path", path), slog.Any("error", err), slog.Int64("written", written))
-		slog.Info("Closing and removing", slog.String("path", path))
+		// TODO: this is a bit of a mess, should be cleaned up
+		slog.Error("Error while copying", slog.String("path", transmitPath), slog.Any("error", err), slog.Int64("written", written))
+		slog.Info("Closing and removing", slog.String("path", transmitPath))
 		f.Close()
-		os.Remove(path)
-		return fmt.Errorf("[local] Writer.Process(): error copying %s after %d bytes: %s", path, written, err)
+		os.Remove(transmitPath)
+		return fmt.Errorf("[local] Writer.Process(): error copying %s after %d bytes: %s", transmitPath, written, err)
 	}
-	slog.Info("Copy complete", slog.String("path", path), slog.Int64("written", written))
+	slog.Info("Copy complete", slog.String("path", transmitPath), slog.Int64("written", written))
 
 	// Move the file from Transmit to ToLoad
-	dest := fmt.Sprintf("%s/%s", w.ToLoad, filename)
-	slog.Info("Moving", slog.String("from", path), slog.String("to", dest))
-	err = os.Rename(path, dest)
+	toLoadPath := fmt.Sprintf("%s/%s", w.ToLoad, filename)
+	slog.Info("Moving", slog.String("from", transmitPath), slog.String("to", toLoadPath))
+	err = os.Rename(transmitPath, toLoadPath)
 	if err != nil {
 		// TODO: if the ToLoad directory does not exist, the error is wait too long and confusing.
-		slog.Error("Error while moving", slog.String("from", path), slog.String("to", dest), slog.Any("error", err))
-		slog.Info("Closing and removing", slog.String("path", path))
+		slog.Error("Error while moving", slog.String("from", transmitPath), slog.String("to", toLoadPath), slog.Any("error", err))
+		slog.Info("Closing and removing", slog.String("path", transmitPath))
 		f.Close()
-		os.Remove(path)
+		os.Remove(transmitPath)
 		// TODO: dubbele errors, moet eigenlijk niet he...
-		return fmt.Errorf("error moving %s: %s", path, err)
+		return fmt.Errorf("error moving %s: %s", transmitPath, err)
 	}
 
 	return nil
