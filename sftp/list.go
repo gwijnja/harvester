@@ -2,40 +2,40 @@ package sftp
 
 import (
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"regexp"
 )
 
 // List returns a list of files in the ToLoad directory that match the regex.
-func (c *Connector) List() ([]string, error) {
-	if c.client == nil {
-		slog.Info("List() called, connecting", slog.String("host", c.Host), slog.Int("port", c.Port))
-		err := c.connect()
-		if err != nil {
-			return nil, fmt.Errorf("failed to connect before listing files: %s", err)
-		}
-	}
-
-	slog.Info("Connected to SFTP server", slog.String("host", c.Host), slog.Int("port", c.Port))
+func (r *FileReader) List() ([]string, error) {
+	r.ReconnectIfNeeded()
 
 	// List the files in the ToLoad directory, relative to the current root.
-	ff, err := c.client.ReadDir(c.ToLoad)
+	slog.Info("sftp: Listing files", slog.String("directory", r.ToLoad))
+	ff, err := r.Connector.client.ReadDir(r.ToLoad)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list files in %s: %s", c.ToLoad, err)
+		return nil, fmt.Errorf("failed to list files in %s: %s", r.ToLoad, err)
 	}
 
 	// Exclude directories, we are only interested in files
 	ff = excludeDirectories(ff)
 
 	// Only match files that match the regex
-	ff = filterFiles(ff, c.Regex)
+	slog.Info("sftp: Filtering files", slog.String("regex", r.Regex))
+	ff, err = filterFiles(ff, r.Regex)
+	if err != nil {
+		return nil, err
+	}
 
 	// Convert the FileInfo objects to a slice of strings
 	files := make([]string, 0, len(ff))
 	for _, f := range ff {
 		files = append(files, f.Name())
 	}
+
+	slog.Info("sftp: Found files", slog.Int("count", len(files)))
 
 	return files, nil
 }
@@ -52,12 +52,20 @@ func excludeDirectories(ff []os.FileInfo) []os.FileInfo {
 }
 
 // filterFiles returns a slice of FileInfo objects that match the regex.
-func filterFiles(ff []os.FileInfo, regex *regexp.Regexp) []os.FileInfo {
-	filenames := make([]os.FileInfo, 0, len(ff))
+func filterFiles(ff []os.FileInfo, regex string) ([]os.FileInfo, error) {
+	filtered := []fs.FileInfo{}
 	for _, f := range ff {
-		if regex.MatchString(f.Name()) {
-			filenames = append(filenames, f)
+		if regex != "" {
+			matched, err := regexp.MatchString(regex, f.Name())
+			if err != nil {
+				return nil, fmt.Errorf("invalid regex, error matching %s with %s: %s", regex, f.Name(), err)
+			}
+			if !matched {
+				slog.Warn("Skipping non-matching file", slog.String("filename", f.Name()))
+				continue
+			}
 		}
+		filtered = append(filtered, f)
 	}
-	return filenames
+	return filtered, nil
 }

@@ -3,6 +3,7 @@ package sftp
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -11,9 +12,30 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
+// Connector is a structure that holds the configuration for an SFTP connection.
+type Connector struct {
+	Host                  string
+	Port                  int
+	FailIfHostKeyChanged  bool
+	FailIfHostKeyNotFound bool
+	Username              string
+	Password              string
+	PrivateKeyFile        string
+	Passphrase            string
+	client                *sftp.Client
+}
+
+func (c *Connector) isAlive() bool {
+	if c.client == nil {
+		return false
+	}
+	_, err := c.client.Stat("/")
+	return err == nil
+}
+
 // connect establishes a connection to the SFTP server
 func (c *Connector) connect() error {
-	log.Printf("[sftp] Connecting to %s@%s:%d\n", c.Username, c.Host, c.Port)
+	slog.Info("sftp: Connecting", slog.String("host", c.Host), slog.Int("port", c.Port), slog.String("username", c.Username))
 
 	var auths []ssh.AuthMethod
 
@@ -23,7 +45,7 @@ func (c *Connector) connect() error {
 	// Add private key authentication
 	auths, err := addPrivateKeyAuth(auths, c.PrivateKeyFile, c.Passphrase)
 	if err != nil {
-		return fmt.Errorf("[sftp] failed to add private key auth: %s", err)
+		return fmt.Errorf("sftp: failed to add private key auth: %s", err)
 	}
 
 	// Create a new SSH client
@@ -39,9 +61,9 @@ func (c *Connector) connect() error {
 		hostKeyCallback, err := knownhosts.New(path)
 		if err != nil {
 			if c.FailIfHostKeyNotFound {
-				return fmt.Errorf("[sftp] failed to open known_hosts file: %s", err)
+				return fmt.Errorf("sftp: failed to open known_hosts file: %s", err)
 			}
-			log.Println("[sftp] Known hosts file not found, continuing without host key verification")
+			slog.Warn("sftp: Known hosts file not found, continuing without host key verification")
 		} else {
 			config.HostKeyCallback = hostKeyCallback
 		}
@@ -49,21 +71,19 @@ func (c *Connector) connect() error {
 
 	// Connect to the SSH server
 	addr := fmt.Sprintf("%s:%d", c.Host, c.Port)
+	slog.Info("sftp: Dialing", slog.String("address", addr))
 	conn, err := ssh.Dial("tcp", addr, &config)
 	if err != nil {
-		return fmt.Errorf("[sftp] failed to dial: %s", err)
+		return fmt.Errorf("sftp: failed to dial: %s", err)
 	}
 
-	log.Println("[sftp] Connected!")
-
 	// Create a new SFTP client
-	log.Println("[sftp] Creating SFTP client...")
+	slog.Info("sftp: Connected, creating SFTP client")
 	client, err := sftp.NewClient(conn)
 	if err != nil {
 		conn.Close()
-		return fmt.Errorf("[sftp] failed to create SFTP client: %s", err)
+		return fmt.Errorf("sftp: failed to create SFTP client: %s", err)
 	}
-	log.Println("[sftp] SFTP client created")
 
 	c.client = client
 	return nil
@@ -106,7 +126,7 @@ func addPrivateKeyAuth(auths []ssh.AuthMethod, privateKeyFile string, passphrase
 // Close closes the SFTP connection
 func (c *Connector) Close() error {
 	if c.client != nil {
-		log.Println("[sftp] Closing connection")
+		log.Println("sftp: Closing connection")
 		err := c.client.Close()
 		c.client = nil
 		return err
@@ -116,16 +136,6 @@ func (c *Connector) Close() error {
 
 // Finalize closes the SFTP connection
 func (c *Connector) Finalize() {
-	log.Println("[sftp] Finalizing...")
+	log.Println("sftp: Finalizing...")
 	c.Close()
-}
-
-// isAlive checks if the SFTP connection is still alive
-func (c *Connector) isAlive() bool {
-	if c.client == nil {
-		return false
-	}
-
-	_, err := c.client.ReadDir(c.ToLoad)
-	return err == nil
 }
