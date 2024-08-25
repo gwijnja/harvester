@@ -15,9 +15,10 @@ import (
 type FileReader struct {
 	ToLoad              string
 	Loaded              string
-	FollowSymlinks      bool
 	DeleteAfterDownload bool
+	FollowSymlinks      bool
 	Regex               string
+	MaxFiles            int
 	next                harvester.FileWriter
 }
 
@@ -69,6 +70,12 @@ func (d *FileReader) List() ([]string, error) {
 		// Add the filename to the list
 		filenames = append(filenames, file.Name())
 		slog.Info("local: Found file", slog.String("filename", file.Name()))
+
+		// Stop if the maximum number of files has been reached
+		if d.MaxFiles > 0 && len(filenames) >= d.MaxFiles {
+			slog.Info("local: Reached maximum number of files", slog.Int("max_files", d.MaxFiles))
+			break
+		}
 	}
 	return filenames, nil
 }

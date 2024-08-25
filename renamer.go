@@ -9,9 +9,9 @@ import (
 )
 
 type Renamer struct {
-	NextProcessor
 	Regex  string // Example: "(\\d{4})-(\\d{2})-(\\d{2})"
 	Format string // Example: "$1$2$3.txt"
+	NextProcessor
 }
 
 func (r *Renamer) Process(oldFilename string, reader io.Reader) error {
@@ -26,7 +26,7 @@ func (r *Renamer) Process(oldFilename string, reader io.Reader) error {
 	// Match the regex
 	matches := re.FindStringSubmatch(oldFilename)
 	if len(matches) == 0 {
-		return fmt.Errorf("harvester: Failed to match regex %s against %s", r.Regex, oldFilename)
+		return fmt.Errorf("harvester: Failed to match %s", oldFilename)
 	}
 	slog.Debug("harvester: Matched regex", slog.Int("num_matches", len(matches)))
 

@@ -14,9 +14,9 @@ type FileReader struct {
 	Connector
 	ToLoad              string
 	Loaded              string
+	DeleteAfterDownload bool
 	Regex               string
 	MaxFiles            int // set to 0 for no limit
-	DeleteAfterDownload bool
 	next                harvester.FileWriter
 }
 

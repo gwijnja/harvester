@@ -15,9 +15,9 @@ type FileReader struct {
 	Connector
 	ToLoad              string
 	Loaded              string
+	DeleteAfterDownload bool
 	Regex               string
 	MaxFiles            int
-	DeleteAfterDownload bool
 	harvester.NextProcessor
 }
 
@@ -52,11 +52,12 @@ func (r *FileReader) List() ([]string, error) {
 	files := make([]string, 0, len(ff))
 	for _, f := range ff {
 		files = append(files, f.Name())
+		slog.Info("sftp: Found file", slog.String("filename", f.Name()))
 		if r.MaxFiles > 0 && len(files) >= r.MaxFiles {
+			slog.Info("sftp: Reached maximum number of files", slog.Int("max", r.MaxFiles))
 			break
 		}
 	}
-	slog.Info("sftp: Found files", slog.Int("count", len(files)))
 
 	return files, nil
 }
