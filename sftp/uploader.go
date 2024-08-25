@@ -9,25 +9,25 @@ import (
 	"github.com/gwijnja/harvester"
 )
 
-type FileWriter struct {
+type Uploader struct {
 	Connector
 	Transmit string
 	ToLoad   string
 }
 
-func (w *FileWriter) SetNext(next harvester.FileWriter) {}
+func (u *Uploader) SetNext(next harvester.FileWriter) {}
 
-func (w *FileWriter) Process(filename string, r io.Reader) error {
+func (u *Uploader) Process(filename string, r io.Reader) error {
 
 	// Connect to the SFTP server
-	conn, err := w.Connector.connect()
+	conn, err := u.Connector.connect()
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
 	// Open the file to write to
-	transmitPath := filepath.Join(w.Transmit, filename)
+	transmitPath := filepath.Join(u.Transmit, filename)
 	f, err := conn.sftpClient.Create(transmitPath)
 	if err != nil {
 		return fmt.Errorf("sftp: Failed to create remote file %s: %s", transmitPath, err)
@@ -47,8 +47,8 @@ func (w *FileWriter) Process(filename string, r io.Reader) error {
 	slog.Info("sftp: Copied file", slog.String("path", transmitPath))
 
 	// Move the file to the toload directory
-	toLoadPath := filepath.Join(w.ToLoad, filename)
-	err = conn.sftpClient.Rename(transmitPath, toLoadPath) // TODO: Use PosixRename?
+	toLoadPath := filepath.Join(u.ToLoad, filename)
+	err = conn.sftpClient.Rename(transmitPath, toLoadPath)
 	if err != nil {
 		return fmt.Errorf("sftp: Failed to move file from %s to %s: %s", transmitPath, toLoadPath, err)
 	}

@@ -17,7 +17,7 @@ type Decompressor struct {
 }
 
 // Process reads a gzip file and writes the uncompressed contents to the next processor
-func (z *Decompressor) Process(filename string, r io.Reader) error {
+func (d *Decompressor) Process(filename string, r io.Reader) error {
 
 	// Create a gzip reader
 	gzipReader, err := gzip.NewReader(r)
@@ -47,5 +47,5 @@ func (z *Decompressor) Process(filename string, r io.Reader) error {
 
 	r = bytes.NewReader(buf.Bytes())
 	slog.Debug("Calling the next processor")
-	return z.NextProcessor.Process(filename, r)
+	return d.NextProcessor.Process(filename, r)
 }

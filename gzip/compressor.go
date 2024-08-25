@@ -10,13 +10,13 @@ import (
 	"github.com/gwijnja/harvester"
 )
 
-// Compressor compresses a file and presents it to the next processor in the chain.
+// Compressor compresses a file using gzip and presents it to the next processor in the chain.
 type Compressor struct {
 	harvester.NextProcessor
 }
 
 // Process reads a file and writes the compressed contents to the next processor
-func (z *Compressor) Process(filename string, r io.Reader) error {
+func (c *Compressor) Process(filename string, r io.Reader) error {
 
 	// Create a gzip writer
 	buf := new(bytes.Buffer)
@@ -42,5 +42,5 @@ func (z *Compressor) Process(filename string, r io.Reader) error {
 	slog.Info("gzip: Renamed context filename", slog.String("newname", filename+".gz"))
 
 	slog.Debug("Calling the next processor")
-	return z.NextProcessor.Process(filename, r)
+	return c.NextProcessor.Process(filename, r)
 }

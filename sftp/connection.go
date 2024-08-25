@@ -7,12 +7,12 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-type Connection struct {
+type connection struct {
 	sshClient  *ssh.Client
 	sftpClient *sftp.Client
 }
 
-func (c *Connection) Close() {
+func (c *connection) Close() {
 	if c.sftpClient != nil {
 		c.sftpClient.Close()
 		slog.Info("sftp: Closed SFTP client")

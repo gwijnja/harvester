@@ -39,6 +39,12 @@ func (d *FileReader) List() ([]string, error) {
 		slog.Debug("local: Filtering files with regex", slog.String("regex", d.Regex))
 	}
 
+	// Prepare the regex
+	re, err := regexp.Compile(d.Regex)
+	if err != nil {
+		return nil, fmt.Errorf("local: Failed to compile regex %s: %s", d.Regex, err)
+	}
+
 	// Create a list of filenames
 	filenames := make([]string, 0, len(files))
 	for _, file := range files {
@@ -56,15 +62,9 @@ func (d *FileReader) List() ([]string, error) {
 		}
 
 		// Skip files that do not match the regex
-		if d.Regex != "" {
-			matched, err := regexp.MatchString(d.Regex, file.Name())
-			if err != nil {
-				return nil, fmt.Errorf("local: Failed to compile regex %s: %s", d.Regex, err)
-			}
-			if !matched {
-				slog.Warn("local: Skipping non-matching file", slog.String("filename", file.Name()))
-				continue
-			}
+		if !re.MatchString(file.Name()) {
+			slog.Warn("local: Skipping non-matching file", slog.String("filename", file.Name()))
+			continue
 		}
 
 		// Add the filename to the list

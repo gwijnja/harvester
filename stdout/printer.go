@@ -9,12 +9,12 @@ import (
 )
 
 // Printer prints the contents of a file to stdout
-type FileWriter struct {
+type Printer struct {
 	harvester.NextProcessor
 }
 
 // Process reads a file and writes the contents to stdout
-func (w *FileWriter) Process(filename string, r io.Reader) error {
+func (p *Printer) Process(filename string, r io.Reader) error {
 
 	buf := new(strings.Builder)
 

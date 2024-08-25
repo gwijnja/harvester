@@ -10,20 +10,20 @@ import (
 	"github.com/jlaffaye/ftp"
 )
 
-type FileWriter struct {
+type Uploader struct {
 	Connector
 	Transmit string
 	ToLoad   string
 }
 
 // SetNext is a no-op for the FileWriter
-func (w *FileWriter) SetNext(next harvester.FileWriter) {}
+func (u *Uploader) SetNext(next harvester.FileWriter) {}
 
 // Process writes the file to the FTP server and moves it to the ToLoad directory
-func (w *FileWriter) Process(filename string, r io.Reader) error {
+func (u *Uploader) Process(filename string, r io.Reader) error {
 
 	// Connect
-	conn, err := w.connect()
+	conn, err := u.connect()
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func (w *FileWriter) Process(filename string, r io.Reader) error {
 	slog.Debug("ftp: Set transfer type to binary")
 
 	// Store the file in the Transmit directory
-	transmitPath := filepath.Join(w.Transmit, filename)
+	transmitPath := filepath.Join(u.Transmit, filename)
 	err = conn.Stor(transmitPath, r)
 	if err != nil {
 		return fmt.Errorf("ftp: Failed to store file %s: %s", transmitPath, err)
@@ -49,7 +49,7 @@ func (w *FileWriter) Process(filename string, r io.Reader) error {
 	slog.Info("ftp: Stored file", slog.String("path", transmitPath))
 
 	// Move the file from Transmit to ToLoad
-	toLoadPath := filepath.Join(w.ToLoad, filename)
+	toLoadPath := filepath.Join(u.ToLoad, filename)
 	err = conn.Rename(transmitPath, toLoadPath)
 	if err != nil {
 		return fmt.Errorf("ftp: Failed to rename file %s to %s: %s", transmitPath, toLoadPath, err)

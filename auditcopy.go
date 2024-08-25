@@ -32,7 +32,7 @@ func AuditCopy(dst io.Writer, src io.Reader) (written int64, err error) {
 		"harvester: Copy complete",
 		slog.Int64("bytes", written),
 		slog.Int64("msec", elapsed.Milliseconds()),
-		slog.Float64("MB/s", mebibytes/elapsed.Seconds()),
+		slog.Float64("mibps", mebibytes/elapsed.Seconds()),
 		slog.String("sha1", fmt.Sprintf("%x", sha1hash)),
 	)
 

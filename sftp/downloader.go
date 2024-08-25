@@ -2,7 +2,6 @@ package sftp
 
 import (
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -11,58 +10,59 @@ import (
 	"github.com/gwijnja/harvester"
 )
 
-type FileReader struct {
+type Downloader struct {
 	Connector
 	ToLoad              string
 	Loaded              string
-	DeleteAfterDownload bool
 	Regex               string
 	MaxFiles            int
+	DeleteAfterDownload bool
 	harvester.NextProcessor
 }
 
 // List returns a list of files in the ToLoad directory that match the regex.
-func (r *FileReader) List() ([]string, error) {
+func (d *Downloader) List() ([]string, error) {
 
 	// Connect to the SFTP server
-	conn, err := r.Connector.connect()
+	conn, err := d.Connector.connect()
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
 
 	// List the files in the ToLoad directory, relative to the current root.
-	ff, err := conn.sftpClient.ReadDir(r.ToLoad)
+	ff, err := conn.sftpClient.ReadDir(d.ToLoad)
 	if err != nil {
-		return nil, fmt.Errorf("sftp: Failed to read directory %s: %s", r.ToLoad, err)
+		return nil, fmt.Errorf("sftp: Failed to read directory %s: %s", d.ToLoad, err)
 	}
 	slog.Info("sftp: Read directory", slog.Int("entries", len(ff)))
 
 	// Exclude directories, we are only interested in files
 	ff = excludeDirectories(ff)
 
-	// Only match files that match the regex
-	ff, err = filterFiles(ff, r.Regex)
+	// Filter the files
+	re, err := regexp.Compile(d.Regex)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("sftp: Failed to compile regex %s: %s", d.Regex, err)
 	}
-	slog.Info("sftp: Filtered files", slog.Int("remaining", len(ff)))
-
-	// Convert the FileInfo objects to a slice of strings
-	files := make([]string, 0, len(ff))
+	files := []string{}
 	for _, f := range ff {
+		if !re.MatchString(f.Name()) {
+			slog.Warn("sftp: Skipping non-matching file", slog.String("filename", f.Name()))
+			continue
+		}
 		files = append(files, f.Name())
 		slog.Info("sftp: Found file", slog.String("filename", f.Name()))
 	}
 
-	return harvester.SortAndLimit(files, r.MaxFiles), nil
+	return harvester.SortAndLimit(files, d.MaxFiles), nil
 }
 
 // Process downloads the file from the SFTP server and calls the next processor.
-func (r *FileReader) Process(filename string) error {
+func (d *Downloader) Process(filename string) error {
 
 	// Connect to the SFTP server
-	conn, err := r.Connector.connect()
+	conn, err := d.Connector.connect()
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (r *FileReader) Process(filename string) error {
 	}()
 
 	// Open the file
-	toloadPath := filepath.Join(r.ToLoad, filename)
+	toloadPath := filepath.Join(d.ToLoad, filename)
 	remoteFile, err := conn.sftpClient.Open(toloadPath)
 	if err != nil {
 		return fmt.Errorf("sftp: Failed to open remote file %s: %s", toloadPath, err)
@@ -83,13 +83,13 @@ func (r *FileReader) Process(filename string) error {
 	}()
 
 	// Call the next processor
-	err = r.NextProcessor.Process(filename, remoteFile)
+	err = d.NextProcessor.Process(filename, remoteFile)
 	if err != nil {
 		return err
 	}
 
 	// Check if the file should be deleted
-	if r.DeleteAfterDownload {
+	if d.DeleteAfterDownload {
 		err = conn.sftpClient.Remove(toloadPath)
 		if err != nil {
 			return fmt.Errorf("sftp: Failed to delete remote file %s: %s", toloadPath, err)
@@ -99,7 +99,7 @@ func (r *FileReader) Process(filename string) error {
 	}
 
 	// Move the file to the Loaded directory
-	loadedPath := filepath.Join(r.Loaded, filename)
+	loadedPath := filepath.Join(d.Loaded, filename)
 	err = conn.sftpClient.Rename(toloadPath, loadedPath)
 	if err != nil {
 		return fmt.Errorf("sftp: Failed to move remote file %s to %s: %s", toloadPath, loadedPath, err)
@@ -118,28 +118,4 @@ func excludeDirectories(ff []os.FileInfo) []os.FileInfo {
 		}
 	}
 	return filenames
-}
-
-// filterFiles returns a slice of FileInfo objects that match the regex.
-func filterFiles(ff []os.FileInfo, regex string) ([]os.FileInfo, error) {
-	filtered := []fs.FileInfo{}
-	for _, f := range ff {
-		if regex != "" {
-
-			// Match the regex
-			matched, err := regexp.MatchString(regex, f.Name())
-			if err != nil {
-				return nil, fmt.Errorf("sftp: Failed to compile regex %s: %s", regex, err)
-			}
-
-			// Skip non-matching files
-			if !matched {
-				slog.Warn("sftp: Skipping non-matching file", slog.String("filename", f.Name()))
-				continue
-			}
-		}
-		filtered = append(filtered, f)
-		slog.Info("sftp: Found file", slog.String("filename", f.Name()))
-	}
-	return filtered, nil
 }

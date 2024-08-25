@@ -10,7 +10,7 @@ import (
 	"github.com/jlaffaye/ftp"
 )
 
-type FileReader struct {
+type Downloader struct {
 	Connector
 	ToLoad              string
 	Loaded              string
@@ -21,15 +21,15 @@ type FileReader struct {
 }
 
 // SetNext sets the next FileWriter in the chain
-func (c *FileReader) SetNext(next harvester.FileWriter) {
-	c.next = next
+func (d *Downloader) SetNext(next harvester.FileWriter) {
+	d.next = next
 }
 
 // List lists files in the ToLoad directory
-func (c *FileReader) List() ([]string, error) {
+func (d *Downloader) List() ([]string, error) {
 
 	// Connect
-	conn, err := c.connect()
+	conn, err := d.connect()
 	if err != nil {
 		return nil, err
 	}
@@ -39,26 +39,26 @@ func (c *FileReader) List() ([]string, error) {
 	}()
 
 	// List files
-	entries, err := conn.List(c.ToLoad)
+	entries, err := conn.List(d.ToLoad)
 	if err != nil {
-		return nil, fmt.Errorf("ftp: Failed to list files in %s: %s", c.ToLoad, err)
+		return nil, fmt.Errorf("ftp: Failed to list files in %s: %s", d.ToLoad, err)
 	}
 	slog.Debug("ftp: Listed files", slog.Int("count", len(entries)))
 
 	// Filter files
-	filtered, err := c.filterEntries(entries)
+	filtered, err := d.filterEntries(entries)
 	if err != nil {
 		return nil, err
 	}
 
-	return harvester.SortAndLimit(filtered, c.MaxFiles), nil
+	return harvester.SortAndLimit(filtered, d.MaxFiles), nil
 }
 
 // Process downloads a file from the FTP server and processes it
-func (c *FileReader) Process(filename string) error {
+func (d *Downloader) Process(filename string) error {
 
 	// Connect
-	conn, err := c.connect()
+	conn, err := d.connect()
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (c *FileReader) Process(filename string) error {
 	slog.Debug("ftp: Set transfer type to binary")
 
 	// Retrieve the file
-	toLoadPath := filepath.Join(c.ToLoad, filename)
+	toLoadPath := filepath.Join(d.ToLoad, filename)
 	r, err := conn.Retr(toLoadPath)
 	if err != nil {
 		return fmt.Errorf("ftp: Failed to retrieve file %s: %s", toLoadPath, err)
@@ -87,7 +87,7 @@ func (c *FileReader) Process(filename string) error {
 	slog.Info("ftp: Retrieved file", slog.String("path", toLoadPath))
 
 	// Call the next processor
-	err = c.next.Process(filename, r)
+	err = d.next.Process(filename, r)
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func (c *FileReader) Process(filename string) error {
 	slog.Info("ftp: Closed data connection")
 
 	// Move the file from ToLoad to Loaded, or delete it
-	if c.DeleteAfterDownload {
+	if d.DeleteAfterDownload {
 		err = conn.Delete(toLoadPath)
 		if err != nil {
 			return fmt.Errorf("ftp: Failed to delete file %s: %s", toLoadPath, err)
@@ -105,7 +105,7 @@ func (c *FileReader) Process(filename string) error {
 	}
 
 	// Move the file from toLoad to loaded
-	loadedPath := filepath.Join(c.Loaded, filename)
+	loadedPath := filepath.Join(d.Loaded, filename)
 	err = conn.Rename(toLoadPath, loadedPath)
 	if err != nil {
 		return fmt.Errorf("ftp: Failed to rename file %s to %s: %s", toLoadPath, loadedPath, err)
@@ -116,9 +116,15 @@ func (c *FileReader) Process(filename string) error {
 }
 
 // filterEntries filters the entries based on the regex and maxFiles
-func (c *FileReader) filterEntries(entries []*ftp.Entry) ([]string, error) {
+func (d *Downloader) filterEntries(entries []*ftp.Entry) ([]string, error) {
 
 	filenames := []string{}
+
+	// Compile the regex
+	re, err := regexp.Compile(d.Regex)
+	if err != nil {
+		return nil, fmt.Errorf("ftp: Failed to compile regex %s: %s", d.Regex, err)
+	}
 
 	// Loop over the entries and filter them
 	for _, entry := range entries {
@@ -130,15 +136,9 @@ func (c *FileReader) filterEntries(entries []*ftp.Entry) ([]string, error) {
 		}
 
 		// Skip files that don't match the regex
-		if c.Regex != "" {
-			matched, err := regexp.MatchString(c.Regex, entry.Name)
-			if err != nil {
-				return nil, fmt.Errorf("ftp: Failed to compile regex %s: %s", c.Regex, err)
-			}
-			if !matched {
-				slog.Warn("ftp: Skipping non-matching file", slog.String("filename", entry.Name))
-				continue
-			}
+		if !re.MatchString(entry.Name) {
+			slog.Warn("ftp: Skipping non-matching file", slog.String("filename", entry.Name))
+			continue
 		}
 
 		// Add the file to the list

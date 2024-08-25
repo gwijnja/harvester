@@ -24,7 +24,7 @@ type Connector struct {
 }
 
 // connect establishes a connection to the SFTP server
-func (c *Connector) connect() (*Connection, error) {
+func (c *Connector) connect() (*connection, error) {
 
 	var auths []ssh.AuthMethod
 
@@ -53,7 +53,7 @@ func (c *Connector) connect() (*Connection, error) {
 			if c.FailIfHostKeyNotFound {
 				return nil, fmt.Errorf("sftp: Failed to open known_hosts file: %s", err)
 			}
-			slog.Warn("sftp: Failed to open known_hosts file, continuing without host key verification: %s", err)
+			slog.Warn("sftp: Failed to open known_hosts file, continuing without host key verification", slog.Any("err", err))
 		} else {
 			config.HostKeyCallback = hostKeyCallback
 		}
@@ -78,7 +78,7 @@ func (c *Connector) connect() (*Connection, error) {
 	slog.Info("sftp: Created SFTP client")
 
 	// Return both, because both must be closed at the same time
-	return &Connection{
+	return &connection{
 		sshClient:  sshClient,
 		sftpClient: sftpClient,
 	}, nil
