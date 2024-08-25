@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 package harvester
+=======
+package mft
+>>>>>>> 61f2e4f8d78bef7ffbf118953a0848e8cbf05e5b
 
 import (
 	"crypto/sha1"
