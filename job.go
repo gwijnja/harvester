@@ -3,6 +3,7 @@ package harvester
 import (
 	"log/slog"
 	"runtime"
+	"sort"
 	"time"
 )
 
@@ -47,11 +48,14 @@ func (j *job) Run(interval time.Duration) error {
 }
 
 func (j *job) processFiles() error {
+
+	// List files
 	filenames, err := j.Reader.List()
 	if err != nil {
 		return err
 	}
 
+	// Process files
 	for _, filename := range filenames {
 		slog.Info("job: Processing file", slog.String("filename", filename))
 		err := j.Reader.Process(filename)
@@ -89,4 +93,17 @@ func (j *job) logMemoryUsage() {
 	allocated := int64(float64(m.Alloc) / 1024)
 	slog.Info("job: Current allocated heap memory", slog.Int64("kB", allocated))
 
+}
+
+func SortAndLimit(files []string, max int) []string {
+	sort.Strings(files)
+	slog.Debug("harvester: Sorted files", slog.Int("files", len(files)))
+	if max == 0 {
+		return files
+	}
+	if len(files) <= max {
+		return files
+	}
+	slog.Info("harvester: Limiting files", slog.Int("max", max))
+	return files[:max]
 }

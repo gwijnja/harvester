@@ -53,13 +53,9 @@ func (r *FileReader) List() ([]string, error) {
 	for _, f := range ff {
 		files = append(files, f.Name())
 		slog.Info("sftp: Found file", slog.String("filename", f.Name()))
-		if r.MaxFiles > 0 && len(files) >= r.MaxFiles {
-			slog.Info("sftp: Reached maximum number of files", slog.Int("max", r.MaxFiles))
-			break
-		}
 	}
 
-	return files, nil
+	return harvester.SortAndLimit(files, r.MaxFiles), nil
 }
 
 // Process downloads the file from the SFTP server and calls the next processor.

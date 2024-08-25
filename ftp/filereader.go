@@ -46,7 +46,12 @@ func (c *FileReader) List() ([]string, error) {
 	slog.Debug("ftp: Listed files", slog.Int("count", len(entries)))
 
 	// Filter files
-	return c.filterEntries(entries)
+	filtered, err := c.filterEntries(entries)
+	if err != nil {
+		return nil, err
+	}
+
+	return harvester.SortAndLimit(filtered, c.MaxFiles), nil
 }
 
 // Process downloads a file from the FTP server and processes it
@@ -139,10 +144,6 @@ func (c *FileReader) filterEntries(entries []*ftp.Entry) ([]string, error) {
 		// Add the file to the list
 		slog.Info("ftp: Found file", slog.String("filename", entry.Name))
 		filenames = append(filenames, entry.Name)
-		if c.MaxFiles > 0 && len(filenames) >= c.MaxFiles {
-			slog.Info("ftp: Reached max files", slog.Int("max", c.MaxFiles))
-			break
-		}
 	}
 
 	return filenames, nil
