@@ -1,37 +1,39 @@
-package mft
+package harvester
 
 import (
 	"crypto/sha1"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"time"
 )
 
+// AuditCopy copies data from src to dst, while calculating a SHA-1 hash of the data and logging statistics.
 func AuditCopy(dst io.Writer, src io.Reader) (written int64, err error) {
 
 	// Prepare copy
-	log.Println("[mft] AuditCopy(): Setting up the MultiWriter")
 	hasher := sha1.New()
 	writer := io.MultiWriter(dst, hasher)
 	start := time.Now()
 
 	// Copy data
-	log.Println("[mft] AuditCopy(): Copying the data")
 	written, err = io.Copy(writer, src)
 	if err != nil {
-		return written, fmt.Errorf("[mft] AuditCopy(): error copying data after %d bytes: %s", written, err)
+		return written, fmt.Errorf("harvester: Failed copying data after %d bytes: %s", written, err)
 	}
 
 	// Gather statistics
 	elapsed := time.Since(start)
-	megabytesPerSecond := float64(written) / (1048576 * elapsed.Seconds())
 	sha1hash := hasher.Sum(nil)
+	mebibytes := float64(written) / 1024 / 1024
 
 	// Log results
-	log.Printf(
-		"[mft] AuditCopy(): %d bytes in %s (%.1f MiB/s), SHA-1: %x\n",
-		written, elapsed.String(), megabytesPerSecond, sha1hash,
+	slog.Info(
+		"harvester: Copy complete",
+		slog.Int64("bytes", written),
+		slog.Int64("msec", elapsed.Milliseconds()),
+		slog.Float64("mibps", mebibytes/elapsed.Seconds()),
+		slog.String("sha1", fmt.Sprintf("%x", sha1hash)),
 	)
 
 	return
