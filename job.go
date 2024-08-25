@@ -36,17 +36,17 @@ func (j *job) Run(interval time.Duration) error {
 	for {
 		err := j.processFiles()
 		if err != nil {
-			slog.Error("Error while processing files", slog.Any("error", err))
+			slog.Error("harvester: Failed to process files", slog.Any("error", err))
 		}
 
 		j.logMemoryUsage()
-		slog.Info("Sleeping...", slog.Duration("duration", interval))
+		slog.Info("harvester: Sleeping", slog.Duration("duration", interval))
 		time.Sleep(interval)
+		slog.Info("harvester: Waking up")
 	}
 }
 
 func (j *job) processFiles() error {
-	slog.Info("job: Getting a list of files from the reader")
 	filenames, err := j.Reader.List()
 	if err != nil {
 		return err
@@ -56,10 +56,11 @@ func (j *job) processFiles() error {
 		slog.Info("job: Processing file", slog.String("filename", filename))
 		err := j.Reader.Process(filename)
 		if err != nil {
-			slog.Error("job: Error while processing file", slog.String("filename", filename), slog.Any("error", err))
+			slog.Error("job: Failed to process file", slog.String("filename", filename), slog.Any("error", err))
 			continue
 		}
 	}
+	slog.Info("job: Done processing files")
 
 	return nil
 }

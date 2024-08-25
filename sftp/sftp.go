@@ -34,7 +34,7 @@ func (c *Connector) connect() (*Connection, error) {
 	// Add private key authentication
 	auths, err := addPrivateKeyAuth(auths, c.PrivateKeyFile, c.Passphrase)
 	if err != nil {
-		return nil, fmt.Errorf("sftp: failed to add private key auth: %s", err)
+		return nil, err
 	}
 
 	// Create a new SSH client
@@ -51,9 +51,9 @@ func (c *Connector) connect() (*Connection, error) {
 		hostKeyCallback, err := knownhosts.New(path)
 		if err != nil {
 			if c.FailIfHostKeyNotFound {
-				return nil, fmt.Errorf("sftp: failed to open known_hosts file: %s", err)
+				return nil, fmt.Errorf("sftp: Failed to open known_hosts file: %s", err)
 			}
-			slog.Warn("sftp: Known hosts file not found, continuing without host key verification")
+			slog.Warn("sftp: Failed to open known_hosts file, continuing without host key verification: %s", err)
 		} else {
 			config.HostKeyCallback = hostKeyCallback
 		}
@@ -61,19 +61,21 @@ func (c *Connector) connect() (*Connection, error) {
 
 	// Connect to the SSH server
 	addr := fmt.Sprintf("%s:%d", c.Host, c.Port)
-	slog.Info("sftp: Connecting to SSH", slog.String("address", addr), slog.String("username", c.Username))
 	sshClient, err := ssh.Dial("tcp", addr, &config)
 	if err != nil {
-		return nil, fmt.Errorf("sftp: failed to dial: %s", err)
+		return nil, fmt.Errorf("sftp: Failed to dial: %s", err)
 	}
+	slog.Info("sftp: Connected", slog.String("address", addr), slog.String("username", c.Username))
 
 	// Create a new SFTP client
-	slog.Info("sftp: Connected, creating SFTP client")
 	sftpClient, err := sftp.NewClient(sshClient)
 	if err != nil {
+		slog.Error("sftp: Failed to create SFTP client, closing SSH connection")
 		sshClient.Close()
-		return nil, fmt.Errorf("sftp: failed to create SFTP client: %s", err)
+		slog.Info("sftp: Closed SSH connection")
+		return nil, fmt.Errorf("sftp: Failed to create SFTP client: %s", err)
 	}
+	slog.Info("sftp: Created SFTP client")
 
 	// Return both, because both must be closed at the same time
 	return &Connection{
@@ -92,25 +94,29 @@ func addPasswordAuth(auths []ssh.AuthMethod, password string) []ssh.AuthMethod {
 
 // addPrivateKeyAuth adds private key authentication to the list of authentication methods
 func addPrivateKeyAuth(auths []ssh.AuthMethod, privateKeyFile string, passphrase string) ([]ssh.AuthMethod, error) {
+
+	// Return the list of authentication methods if no private key file is provided
 	if privateKeyFile == "" {
 		return auths, nil
 	}
 
+	// Read the private key from the file
 	key, err := os.ReadFile(privateKeyFile)
 	if err != nil {
-		return auths, fmt.Errorf("failed to read private key: %s", err)
+		return auths, fmt.Errorf("sftp: Failed to read private key from %s: %s", privateKeyFile, err)
 	}
 
+	// Parse the private key
 	var signer ssh.Signer
-
 	if passphrase != "" {
 		signer, err = ssh.ParsePrivateKeyWithPassphrase(key, []byte(passphrase))
 	} else {
 		signer, err = ssh.ParsePrivateKey(key)
 	}
 
+	// Return an error if the private key could not be parsed
 	if err != nil {
-		return auths, fmt.Errorf("failed to parse private key: %s", err)
+		return auths, fmt.Errorf("sftp: Failed to parse private key from %s: %s", privateKeyFile, err)
 	}
 
 	return append(auths, ssh.PublicKeys(signer)), nil

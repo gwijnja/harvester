@@ -18,35 +18,41 @@ type FileWriter struct {
 func (w *FileWriter) SetNext(next harvester.FileWriter) {}
 
 func (w *FileWriter) Process(filename string, r io.Reader) error {
+
+	// Connect to the SFTP server
 	conn, err := w.Connector.connect()
 	if err != nil {
-		return fmt.Errorf("failed to connect: %s", err)
+		return err
 	}
 	defer conn.Close()
 
 	// Open the file to write to
 	transmitPath := filepath.Join(w.Transmit, filename)
-	slog.Info("sftp: Opening file", slog.String("filename", transmitPath))
 	f, err := conn.sftpClient.Create(transmitPath)
 	if err != nil {
-		return fmt.Errorf("failed to create remote file %s: %s", transmitPath, err)
+		return fmt.Errorf("sftp: Failed to create remote file %s: %s", transmitPath, err)
 	}
-	defer f.Close()
+	slog.Info("sftp: Opened remote file", slog.String("path", transmitPath))
+
+	defer func() {
+		f.Close()
+		slog.Info("sftp: Closed remote file", slog.String("path", transmitPath))
+	}()
 
 	// Call AuditCopy to write the file
-	slog.Info("sftp: Calling AuditCopy to write the file")
 	_, err = harvester.AuditCopy(f, r)
 	if err != nil {
-		return fmt.Errorf("failed to write file %s: %s", filename, err)
+		return err
 	}
+	slog.Info("sftp: Copied file", slog.String("path", transmitPath))
 
 	// Move the file to the toload directory
 	toLoadPath := filepath.Join(w.ToLoad, filename)
-	slog.Info("sftp: Moving file", slog.String("from", transmitPath), slog.String("to", toLoadPath))
 	err = conn.sftpClient.Rename(transmitPath, toLoadPath) // TODO: Use PosixRename?
 	if err != nil {
-		return fmt.Errorf("failed to move file from %s to %s: %s", transmitPath, toLoadPath, err)
+		return fmt.Errorf("sftp: Failed to move file from %s to %s: %s", transmitPath, toLoadPath, err)
 	}
+	slog.Info("sftp: Moved file", slog.String("from", transmitPath), slog.String("to", toLoadPath))
 
 	return nil
 }

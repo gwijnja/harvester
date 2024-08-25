@@ -25,61 +25,77 @@ type Archiver struct {
 // Process receives a file and writes it to the local filesystem.
 func (a *Archiver) Process(filename string, r io.Reader) error {
 
-	// Prepare the archive directory
+	// Prepare archive directory
 	archiveDir, err := a.PrepArchiveDir(filename)
 	if err != nil {
-		return fmt.Errorf("unable to prepare archive directory: %s", err)
+		return err
 	}
 
+	// Create the transmit file
 	transmitPath := filepath.Join(a.Transmit, filename)
-	slog.Info("Creating transmit file", slog.String("path", transmitPath))
 	f, err := os.Create(transmitPath)
 	if err != nil {
-		return fmt.Errorf("unable to open transmit file %s: %s", transmitPath, err)
+		return fmt.Errorf("local: Failed to create transmit file %s: %s", transmitPath, err)
 	}
-	defer f.Close()
-	slog.Info("File created", slog.String("path", transmitPath))
+	slog.Info("local: Created transmit file", slog.String("path", transmitPath))
+
+	defer func() {
+		f.Close()
+		slog.Info("local: Closed transmit file", slog.String("path", transmitPath))
+	}()
 
 	tee := io.TeeReader(r, f)
 
 	// Forward the reader to the next processor
-	slog.Info("Calling NextProcessor.Process")
+	slog.Debug("Calling NextProcessor.Process")
 	err = a.NextProcessor.Process(filename, tee)
 	if err != nil {
-		slog.Error("tee process returned error, deleting transming file from archive.")
+		f.Close()
+		slog.Info("local: Closed transmit file", slog.String("path", transmitPath))
+
 		os.Remove(transmitPath)
-		return fmt.Errorf("error processing %s: %s", filename, err)
+		slog.Info("local: Removed transmit file", slog.String("path", transmitPath))
+		return err
 	}
 
 	// Close the file
 	f.Close()
+	slog.Info("local: Closed transmit file", slog.String("path", transmitPath))
 
-	// Move it to the final archive directory
+	// Move to archive directory
 	archivePath := filepath.Join(archiveDir, filename)
-	slog.Info("Moving", slog.String("from", transmitPath), slog.String("to", archivePath))
 	err = os.Rename(transmitPath, archivePath)
 	if err != nil {
-		slog.Error("Error while moving", slog.String("from", transmitPath), slog.String("to", archivePath), slog.Any("error", err))
-		return fmt.Errorf("error moving %s: %s", transmitPath, err)
+		return fmt.Errorf("local: Failed to move %s to %s: %s", transmitPath, archivePath, err)
 	}
+	slog.Info("Moved", slog.String("from", transmitPath), slog.String("to", archivePath))
 
 	return nil
 }
 
 // PrepArchiveDir creates the archive directory if it does not exist.
 func (r *Archiver) PrepArchiveDir(filename string) (string, error) {
+
+	// Match the filename with the regex
 	subPath, err := r.MatchPath(filename)
 	if err != nil {
-		slog.Warn("Unable to match archive path to filename, file will be placed in archive root", slog.String("filename", filename))
+		slog.Warn("local: Failed to match filename, file will be placed in archive root", slog.String("filename", filename))
 		subPath = ""
 	}
 
 	fullPath := filepath.Join(r.Archive, subPath)
-	slog.Info("Creating archive directory", slog.String("path", fullPath))
+
+	// If path already exists, return
+	if _, err := os.Stat(fullPath); err == nil {
+		return fullPath, nil
+	}
+
+	// Create the directory
 	err = os.MkdirAll(fullPath, 0755)
 	if err != nil {
-		return "", fmt.Errorf("unable to create archive directory %s: %s", fullPath, err)
+		return "", fmt.Errorf("local: Failed to create archive directory %s: %s", fullPath, err)
 	}
+	slog.Info("local: Created archive directory", slog.String("path", fullPath))
 
 	return fullPath, nil
 }
@@ -87,25 +103,26 @@ func (r *Archiver) PrepArchiveDir(filename string) (string, error) {
 // MatchPath matches the filename with the regex and formats the archive path.
 func (r *Archiver) MatchPath(filename string) (string, error) {
 
-	slog.Debug("Compiling regex", slog.String("regex", r.Regex))
+	// Compile the regex
 	re, err := regexp.Compile(r.Regex)
 	if err != nil {
-		return "", fmt.Errorf("unable to compile regex: %s", err)
+		return "", fmt.Errorf("local: Failed to compile regex: %s", err)
 	}
+	slog.Debug("local: Compiled regex", slog.String("regex", r.Regex))
 
-	slog.Debug("Matching regex", slog.String("filename", filename))
+	// Match the filename
 	matches := re.FindStringSubmatch(filename)
 	if len(matches) == 0 {
-		return "", fmt.Errorf("no matches found for regex: %s", r.Regex)
+		return "", fmt.Errorf("local: Failed to match filename %s against regex %s", filename, r.Regex)
 	}
+	slog.Debug("local: Matched regex", slog.String("filename", filename), slog.Int("matches", len(matches)))
 
-	slog.Debug("Formatting archive path")
+	// Format the archive path
 	path := r.Format
 	for i, match := range matches {
 		path = strings.Replace(path, fmt.Sprintf("$%d", i), match, -1)
 	}
-
-	slog.Info("Subpath formatted", slog.String("subpath", path))
+	slog.Info("local: Formatted subpath", slog.String("subpath", path))
 
 	return path, nil
 }

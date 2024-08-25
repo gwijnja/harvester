@@ -26,26 +26,31 @@ func (r *FileReader) SetNext(next harvester.FileWriter) {
 }
 
 func (d *FileReader) List() ([]string, error) {
-	slog.Info("Listing files", slog.String("toload", d.ToLoad))
+
+	// List files in the ToLoad directory
 	files, err := os.ReadDir(d.ToLoad)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list files in %s: %s", d.ToLoad, err)
+		return nil, fmt.Errorf("local: Failed to list files in %s: %s", d.ToLoad, err)
 	}
+	slog.Debug("local: Listed files in ToLoad", slog.String("path", d.ToLoad))
 
 	if d.Regex != "" {
-		slog.Debug("Filtering files with regex", slog.String("regex", d.Regex))
+		slog.Debug("local: Filtering files with regex", slog.String("regex", d.Regex))
 	}
 
+	// Create a list of filenames
 	filenames := make([]string, 0, len(files))
 	for _, file := range files {
 
 		// Skip directories
 		if file.IsDir() {
+			slog.Debug("local: Skipping directory", slog.String("filename", file.Name()))
 			continue
 		}
 
 		// Skip symlinks if FollowSymlinks is false
 		if file.Type()&fs.ModeSymlink != 0 && !d.FollowSymlinks {
+			slog.Debug("local: Skipping symlink", slog.String("filename", file.Name()))
 			continue
 		}
 
@@ -53,29 +58,36 @@ func (d *FileReader) List() ([]string, error) {
 		if d.Regex != "" {
 			matched, err := regexp.MatchString(d.Regex, file.Name())
 			if err != nil {
-				return nil, fmt.Errorf("invalid regex, error matching %s with %s: %s", d.Regex, file.Name(), err)
+				return nil, fmt.Errorf("local: Failed to compile regex %s: %s", d.Regex, err)
 			}
 			if !matched {
-				slog.Warn("Skipping non-matching file", slog.String("filename", file.Name()))
+				slog.Warn("local: Skipping non-matching file", slog.String("filename", file.Name()))
 				continue
 			}
 		}
 
-		slog.Info("File found", slog.String("filename", file.Name()))
-
+		// Add the filename to the list
 		filenames = append(filenames, file.Name())
+		slog.Info("local: Found file", slog.String("filename", file.Name()))
 	}
 	return filenames, nil
 }
 
+// Process reads a file from disk and presents it to the next processor in the chain.
 func (r *FileReader) Process(filename string) error {
+
+	// Open the file
 	from := filepath.Join(r.ToLoad, filename)
-	slog.Debug("Opening", slog.String("path", from))
 	f, err := os.Open(from)
 	if err != nil {
-		return fmt.Errorf("unable to open file %s: %s", from, err)
+		return fmt.Errorf("local: Failed to open file %s: %s", from, err)
 	}
-	defer f.Close()
+	slog.Debug("local: Opened file", slog.String("path", from))
+
+	defer func() {
+		f.Close()
+		slog.Info("local: Closed file", slog.String("path", from))
+	}()
 
 	// Call the next processor in the chain
 	if err := r.next.Process(filename, f); err != nil {
@@ -84,19 +96,19 @@ func (r *FileReader) Process(filename string) error {
 
 	// After the transfer has completed succesfully, either delete the file or move it
 	if r.DeleteAfterDownload {
-		slog.Info("Deleting", slog.String("path", from))
 		if err := os.Remove(from); err != nil {
-			return fmt.Errorf("unable to remove file %s: %s", from, err)
+			return fmt.Errorf("local: Failed to remove file %s: %s", from, err)
 		}
+		slog.Info("local: Deleted file", slog.String("path", from))
 		return nil
 	}
 
 	// Move the file from ToLoad to Loaded
 	to := filepath.Join(r.Loaded, filename)
-	slog.Info("Moving file", slog.String("from", from), slog.String("to", to))
 	err = os.Rename(from, to)
 	if err != nil {
-		return fmt.Errorf("Reader.MoveFile(): unable to move %s to %s: %s", from, to, err)
+		return fmt.Errorf("local: Failed to move file %s to %s: %s", from, to, err)
 	}
+	slog.Info("local: Moved file", slog.String("from", from), slog.String("to", to))
 	return nil
 }

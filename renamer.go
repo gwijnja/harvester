@@ -16,26 +16,26 @@ type Renamer struct {
 
 func (r *Renamer) Process(oldFilename string, reader io.Reader) error {
 
-	slog.Debug("Compiling regex", slog.String("regex", r.Regex))
+	// Compile the regex
 	re, err := regexp.Compile(r.Regex)
 	if err != nil {
-		return fmt.Errorf("unable to compile regex: %s", err)
+		return fmt.Errorf("harvester: Failed to compile regex: %s", err)
 	}
+	slog.Debug("harvester: Compiled regex", slog.String("regex", r.Regex))
 
-	slog.Debug("Matching regex", slog.String("filename", oldFilename))
+	// Match the regex
 	matches := re.FindStringSubmatch(oldFilename)
 	if len(matches) == 0 {
-		return fmt.Errorf("no matches found for regex: %s", r.Regex)
+		return fmt.Errorf("harvester: Failed to match regex %s against %s", r.Regex, oldFilename)
 	}
-	slog.Debug("Matches found", slog.Int("num_matches", len(matches)))
+	slog.Debug("harvester: Matched regex", slog.Int("num_matches", len(matches)))
 
-	slog.Debug("Renaming context filename", slog.String("filename", oldFilename))
+	// Replace the matches in the format string
 	newFilename := r.Format
 	for i, match := range matches {
 		newFilename = strings.Replace(newFilename, fmt.Sprintf("$%d", i), match, -1)
 	}
-
-	slog.Debug("Renaming context filename", slog.String("old", oldFilename), slog.String("new", newFilename))
+	slog.Info("harvester: Renamed file", slog.String("old", oldFilename), slog.String("new", newFilename))
 
 	// Call next processor
 	return r.NextProcessor.Process(newFilename, reader)
